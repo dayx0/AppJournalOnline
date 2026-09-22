@@ -12,9 +12,38 @@ use Inertia\Response;
 
 class JournalValidationController extends Controller
 {
+    /**
+     * Scope query jurnal ke kelas milik MPK yang login (via tabel siswa).
+     * MPK tanpa baris siswa / tanpa kelas -> tidak melihat apa-apa.
+     */
+    private function scopedQuery(Request $request)
+    {
+        $kelasId = $request->user()->mpkKelasId();
+
+        $query = Journal::with(['guru', 'kelas', 'mataPelajaran', 'validator'])->latest();
+
+        if (empty($kelasId)) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        return $query->where('kelas_id', $kelasId);
+    }
+
+    /**
+     * Pastikan MPK hanya boleh membuka jurnal kelasnya sendiri.
+     */
+    private function authorizeKelas(Request $request, Journal $journal): void
+    {
+        $kelasId = $request->user()->mpkKelasId();
+
+        if (empty($kelasId) || (int) $journal->kelas_id !== (int) $kelasId) {
+            abort(403, 'Anda tidak memiliki akses ke jurnal kelas lain.');
+        }
+    }
+
     public function index(Request $request): Response
     {
-        $query = Journal::with(['guru', 'kelas', 'mataPelajaran', 'validator'])->latest();
+        $query = $this->scopedQuery($request);
 
         if ($request->filled('status') && in_array($request->status, ['pending', 'divalidasi', 'revisi'])) {
             $query->where('status', $request->status);
@@ -36,8 +65,10 @@ class JournalValidationController extends Controller
         ]);
     }
 
-    public function show(Journal $journal): Response
+    public function show(Request $request, Journal $journal): Response
     {
+        $this->authorizeKelas($request, $journal);
+
         $journal->load(['guru', 'kelas', 'mataPelajaran', 'absensi', 'validator']);
         // MPK membuka detail = antrean jurnal ini sudah dilihat
         JournalNotificationService::markJournalRead(auth()->id(), $journal->id);
@@ -50,6 +81,8 @@ class JournalValidationController extends Controller
 
     public function validate(Request $request, Journal $journal)
     {
+        $this->authorizeKelas($request, $journal);
+
         $validated = $request->validate([
             'validation_note' => 'nullable|string|max:1000',
         ]);
@@ -72,6 +105,8 @@ class JournalValidationController extends Controller
 
     public function revisi(Request $request, Journal $journal)
     {
+        $this->authorizeKelas($request, $journal);
+
         $validated = $request->validate([
             'validation_note' => 'required|string|max:1000',
         ]);

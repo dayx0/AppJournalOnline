@@ -13,5 +13,10 @@ class ClassRoom extends Model
     public function jurnal(): HasMany
     {
         return $this->hasMany(Journal::class, 'kelas_id');
+    }
+
+    public function siswa(): HasMany
+    {
+        return $this->hasMany(Siswa::class, 'kelas_id');
     } 
 }

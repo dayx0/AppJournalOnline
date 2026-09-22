@@ -12,15 +12,30 @@ class NotificationController extends Controller
 {
     public function index(): Response
     {
+        $kelasId = auth()->id() ? auth()->user()->mpkKelasId() : null;
+
+        // MPK tanpa kelas -> semua antrean kosong.
+        if (empty($kelasId)) {
+            return Inertia::render('mpk/notifikasi', [
+                'pending' => [],
+                'mendesakIds' => [],
+                'revisi' => [],
+                'terbaru' => [],
+                'counts' => ['pending' => 0, 'mendesak' => 0, 'revisi' => 0],
+                'unreadKeys' => JournalNotificationService::unreadKeys(auth()->id()),
+            ]);
+        }
+
         // Jurnal pending paling lama dulu agar yang mendesak muncul teratas,
         // lalu revisi terbaru, lalu 10 validasi terakhir sebagai konteks.
         $pending = Journal::with(['guru', 'kelas', 'mataPelajaran'])
+            ->where('kelas_id', $kelasId)
             ->where('status', 'pending')
             ->oldest()
             ->take(15)
             ->get();
 
-        $mendesakIds = Journal::where('status', 'pending')
+        $mendesakIds = Journal::where('kelas_id', $kelasId)->where('status', 'pending')
             ->where(function ($q) {
                 $q->whereDate('tanggal', '<', today()->toDateString())
                     ->orWhere('created_at', '<', now()->subDay());
@@ -29,12 +44,14 @@ class NotificationController extends Controller
             ->all();
 
         $revisi = Journal::with(['guru', 'kelas', 'mataPelajaran'])
+            ->where('kelas_id', $kelasId)
             ->where('status', 'revisi')
             ->latest()
             ->take(10)
             ->get();
 
         $terbaru = Journal::with(['guru', 'kelas', 'mataPelajaran', 'validator'])
+            ->where('kelas_id', $kelasId)
             ->where('status', 'divalidasi')
             ->latest('validated_at')
             ->take(10)
@@ -46,9 +63,9 @@ class NotificationController extends Controller
             'revisi' => $revisi,
             'terbaru' => $terbaru,
             'counts' => [
-                'pending' => Journal::where('status', 'pending')->count(),
+                'pending' => Journal::where('kelas_id', $kelasId)->where('status', 'pending')->count(),
                 'mendesak' => count($mendesakIds),
-                'revisi' => Journal::where('status', 'revisi')->count(),
+                'revisi' => Journal::where('kelas_id', $kelasId)->where('status', 'revisi')->count(),
             ],
             'unreadKeys' => JournalNotificationService::unreadKeys(auth()->id()),
         ]);

@@ -19,7 +19,15 @@ type User = {
     name: string;
     email: string;
     role: string;
+    siswa?: {
+        id: number;
+        kelas_id: number | null;
+        nis: string | null;
+        kelas?: { id: number; nama_kelas: string } | null;
+    } | null;
 };
+
+type KelasOption = { id: number; nama_kelas: string };
 
 type PaginatedUsers = {
     data: User[];
@@ -67,12 +75,20 @@ function RoleSelect({
     );
 }
 
-export default function UsersIndex({ users }: { users: PaginatedUsers }) {
+export default function UsersIndex({
+    users,
+    kelasOptions = [],
+}: {
+    users: PaginatedUsers;
+    kelasOptions?: KelasOption[];
+}) {
     const { data, setData, post, reset, errors, processing } = useForm({
         name: '',
         email: '',
         password: '',
         role: 'guru' as Role,
+        kelas_id: null as number | null,
+        nis: '',
     });
     const [showForm, setShowForm] = useState(false);
 
@@ -87,6 +103,8 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
         name: '',
         email: '',
         role: 'guru' as Role,
+        kelas_id: null as number | null,
+        nis: '',
         password: '',
     });
 
@@ -112,6 +130,8 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
             name: u.name,
             email: u.email,
             role: (u.role as Role) ?? 'guru',
+            kelas_id: u.siswa?.kelas_id ?? null,
+            nis: u.siswa?.nis ?? '',
             password: '',
         });
     }
@@ -210,9 +230,71 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
                                     <RoleSelect
                                         id="role"
                                         value={data.role}
-                                        onChange={(v) => setData('role', v)}
+                                        onChange={(v) => {
+                                            setData('role', v);
+
+                                            if (v !== 'mpk') {
+                                                setData('kelas_id', null);
+                                            }
+                                        }}
                                     />
                                 </FormField>
+                                {data.role === 'mpk' && (
+                                    <FormField
+                                        label="Kelas MPK *"
+                                        htmlFor="kelas_id"
+                                        error={errors.kelas_id}
+                                    >
+                                        <div className="relative">
+                                            <select
+                                                id="kelas_id"
+                                                value={data.kelas_id ?? ''}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'kelas_id',
+                                                        e.target.value === ''
+                                                            ? null
+                                                            : Number(
+                                                                  e.target
+                                                                      .value,
+                                                              ),
+                                                    )
+                                                }
+                                                className={`${INPUT_CLASS} appearance-none pr-9`}
+                                            >
+                                                <option value="">
+                                                    -- Pilih kelas --
+                                                </option>
+                                                {kelasOptions.map((k) => (
+                                                    <option
+                                                        key={k.id}
+                                                        value={k.id}
+                                                    >
+                                                        {k.nama_kelas}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                        </div>
+                                    </FormField>
+                                )}
+                                {data.role === 'mpk' && (
+                                    <FormField
+                                        label="NIS"
+                                        htmlFor="nis"
+                                        error={errors.nis}
+                                    >
+                                        <input
+                                            id="nis"
+                                            value={data.nis}
+                                            onChange={(e) =>
+                                                setData('nis', e.target.value)
+                                            }
+                                            placeholder="Nomor Induk Siswa (opsional)"
+                                            className={INPUT_CLASS}
+                                        />
+                                    </FormField>
+                                )}
                                 <button
                                     type="submit"
                                     disabled={processing}
@@ -290,9 +372,74 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
                                     <RoleSelect
                                         id="edit-role"
                                         value={editData.role}
-                                        onChange={(v) => setEditData('role', v)}
+                                        onChange={(v) => {
+                                            setEditData('role', v);
+
+                                            if (v !== 'mpk') {
+                                                setEditData('kelas_id', null);
+                                            }
+                                        }}
                                     />
                                 </FormField>
+                                {editData.role === 'mpk' && (
+                                    <FormField
+                                        label="Kelas MPK *"
+                                        htmlFor="edit-kelas_id"
+                                        error={editErrors.kelas_id}
+                                    >
+                                        <div className="relative">
+                                            <select
+                                                id="edit-kelas_id"
+                                                value={editData.kelas_id ?? ''}
+                                                onChange={(e) =>
+                                                    setEditData(
+                                                        'kelas_id',
+                                                        e.target.value === ''
+                                                            ? null
+                                                            : Number(
+                                                                  e.target
+                                                                      .value,
+                                                              ),
+                                                    )
+                                                }
+                                                className={`${INPUT_CLASS} appearance-none pr-9`}
+                                            >
+                                                <option value="">
+                                                    -- Pilih kelas --
+                                                </option>
+                                                {kelasOptions.map((k) => (
+                                                    <option
+                                                        key={k.id}
+                                                        value={k.id}
+                                                    >
+                                                        {k.nama_kelas}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                        </div>
+                                    </FormField>
+                                )}
+                                {editData.role === 'mpk' && (
+                                    <FormField
+                                        label="NIS"
+                                        htmlFor="edit-nis"
+                                        error={editErrors.nis}
+                                    >
+                                        <input
+                                            id="edit-nis"
+                                            value={editData.nis}
+                                            onChange={(e) =>
+                                                setEditData(
+                                                    'nis',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="Nomor Induk Siswa (opsional)"
+                                            className={INPUT_CLASS}
+                                        />
+                                    </FormField>
+                                )}
                                 <div className="flex gap-2 lg:col-span-2">
                                     <button
                                         type="submit"
@@ -344,6 +491,8 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
                                         className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold whitespace-nowrap capitalize ${ROLE_STYLE[u.role] ?? 'bg-[#F3F4F6] text-[#6B7280]'}`}
                                     >
                                         {u.role}
+                                        {u.role === 'mpk' &&
+                                            ` • ${u.siswa?.kelas?.nama_kelas ?? 'tanpa kelas'}`}
                                     </span>
                                     <span className="flex shrink-0 items-center gap-1">
                                         <button

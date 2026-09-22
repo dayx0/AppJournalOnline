@@ -33,9 +33,16 @@ class RekapController extends Controller
     }
 
     /** @param array<string, mixed> $filters */
-    private function baseQuery(array $filters): Builder
+    private function baseQuery(array $filters, ?int $kelasId): Builder
     {
         $query = Journal::with(['guru', 'kelas', 'mataPelajaran', 'validator']);
+
+        // MPK perkelas: selalu kunci ke kelas milik MPK.
+        // MPK tanpa kelas -> tidak melihat apa-apa.
+        if (empty($kelasId)) {
+            return $query->whereRaw('0 = 1');
+        }
+        $query->where('kelas_id', $kelasId);
 
         if (! empty($filters['dari'])) {
             $query->whereDate('tanggal', '>=', $filters['dari']);
@@ -57,13 +64,16 @@ class RekapController extends Controller
     public function index(Request $request): Response
     {
         $filters = $this->filters($request);
-        $query = $this->baseQuery($filters);
+        $kelasId = $request->user()->mpkKelasId();
+        // Abaikan filter kelas_id dari request: MPK terkunci ke kelasnya.
+        $filters['kelas_id'] = $kelasId;
+        $query = $this->baseQuery($filters, $kelasId ? (int) $kelasId : null);
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        $counter = $this->baseQuery($filters);
+        $counter = $this->baseQuery($filters, $kelasId ? (int) $kelasId : null);
 
         return Inertia::render('mpk/rekap', [
             'jurnals' => $query->orderByDesc('tanggal')->orderByDesc('id')->paginate(15)->withQueryString(),
@@ -75,7 +85,9 @@ class RekapController extends Controller
                 'revisi' => (clone $counter)->where('status', 'revisi')->count(),
             ],
             'options' => [
-                'kelas' => ClassRoom::orderBy('nama_kelas')->get(['id', 'nama_kelas']),
+                'kelas' => $kelasId
+                    ? ClassRoom::where('id', $kelasId)->get(['id', 'nama_kelas'])
+                    : [],
                 'mapel' => Subject::orderBy('nama_mapel')->get(['id', 'nama_mapel']),
                 'guru' => User::where('role', 'guru')->orderBy('name')->get(['id', 'name']),
             ],
@@ -85,7 +97,9 @@ class RekapController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $filters = $this->filters($request);
-        $query = $this->baseQuery($filters);
+        $kelasId = $request->user()->mpkKelasId();
+        $filters['kelas_id'] = $kelasId;
+        $query = $this->baseQuery($filters, $kelasId ? (int) $kelasId : null);
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);

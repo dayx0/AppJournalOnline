@@ -41,7 +41,24 @@ final class JournalNotificationService
     }
 
     /**
-     * Jurnal baru / kembali pending -> semua MPK dapat antrean unread.
+     * MPK perkelas: hanya MPK yang baris siswanya memegang kelas jurnal.
+     * MPK tanpa baris siswa / tanpa kelas tidak mendapat apa-apa.
+     *
+     * @return list<int>
+     */
+    public static function mpkUserIdsForJournal(Journal $journal): array
+    {
+        if (empty($journal->kelas_id)) {
+            return [];
+        }
+
+        return User::where('role', 'mpk')
+            ->whereHas('siswa', fn ($q) => $q->where('kelas_id', $journal->kelas_id))
+            ->pluck('id')->all();
+    }
+
+    /**
+     * Jurnal baru / kembali pending -> hanya MPK kelas tersebut yang dapat antrean unread.
      */
     public static function notifyMpkNewJournal(Journal $journal): void
     {
@@ -50,7 +67,7 @@ final class JournalNotificationService
         $kelas = $journal->kelas?->nama_kelas ?? '-';
         $mapel = $journal->mataPelajaran?->nama_mapel ?? '-';
 
-        foreach (self::mpkUserIds() as $mpkId) {
+        foreach (self::mpkUserIdsForJournal($journal) as $mpkId) {
             self::push(
                 $mpkId,
                 $journal,
@@ -64,7 +81,7 @@ final class JournalNotificationService
 
     /**
      * Keputusan MPK (divalidasi / revisi) -> guru pemilik dapat unread.
-     * Antrean pending jurnal ini untuk semua MPK ikut dibersihkan
+     * Antrean pending jurnal ini untuk MPK kelas tersebut ikut dibersihkan
      * karena sudah tidak actionable lagi.
      */
     public static function notifyGuruDecision(Journal $journal): void

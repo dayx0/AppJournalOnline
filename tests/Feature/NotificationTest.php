@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ClassRoom;
 use App\Models\Journal;
+use App\Models\Siswa;
 use App\Models\Subject;
 use App\Models\User;
 use App\Models\UserNotification;
@@ -14,6 +15,14 @@ use Tests\TestCase;
 class NotificationTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function makeMpk(ClassRoom $kelas, ?string $nis = null): User
+    {
+        $mpk = User::factory()->create(['role' => 'mpk']);
+        Siswa::create(['user_id' => $mpk->id, 'kelas_id' => $kelas->id, 'nis' => $nis]);
+
+        return $mpk;
+    }
 
     private function makeMaster(): array
     {
@@ -42,8 +51,8 @@ class NotificationTest extends TestCase
     public function test_mpk_mendapat_antrean_unread_saat_guru_membuat_jurnal()
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $mpk = User::factory()->create(['role' => 'mpk']);
         [$kelas, $mapel] = $this->makeMaster();
+        $mpk = $this->makeMpk($kelas);
 
         $this->actingAs($guru)->post(route('jurnal.store'), [
             'kelas_id' => $kelas->id,
@@ -67,8 +76,8 @@ class NotificationTest extends TestCase
     public function test_guru_mendapat_unread_dan_antrean_mpk_bersih_saat_divalidasi()
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $mpk = User::factory()->create(['role' => 'mpk']);
         $journal = $this->makeJournal($guru);
+        $mpk = $this->makeMpk($journal->kelas);
 
         // Simulasi antrean pending yang dibuat saat jurnal dibuat
         JournalNotificationService::notifyMpkNewJournal($journal);
@@ -90,8 +99,8 @@ class NotificationTest extends TestCase
     public function test_user_dapat_menandai_notifikasi_dibaca()
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $mpk = User::factory()->create(['role' => 'mpk']);
         $journal = $this->makeJournal($guru);
+        $mpk = $this->makeMpk($journal->kelas);
         JournalNotificationService::notifyMpkNewJournal($journal);
 
         $key = "jurnal.{$journal->id}.pending";
@@ -112,12 +121,26 @@ class NotificationTest extends TestCase
     public function test_membuka_detail_jurnal_menandai_baca()
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $mpk = User::factory()->create(['role' => 'mpk']);
         $journal = $this->makeJournal($guru);
+        $mpk = $this->makeMpk($journal->kelas);
         JournalNotificationService::notifyMpkNewJournal($journal);
 
         $this->actingAs($mpk)->get(route('mpk.jurnal.show', $journal))->assertOk();
 
         $this->assertSame(0, UserNotification::forUser($mpk->id)->unread()->count());
+    }
+
+    public function test_mpk_kelas_lain_tidak_dapat_antrean()
+    {
+        $guru = User::factory()->create(['role' => 'guru']);
+        $journal = $this->makeJournal($guru);
+        $kelasLain = ClassRoom::create(['nama_kelas' => 'XII IPS 1', 'jurusan' => 'IPS', 'tingkat' => 'XII']);
+        $mpkLain = $this->makeMpk($kelasLain);
+        $mpkTanpaKelas = User::factory()->create(['role' => 'mpk']);
+
+        JournalNotificationService::notifyMpkNewJournal($journal);
+
+        $this->assertSame(0, UserNotification::forUser($mpkLain->id)->unread()->count());
+        $this->assertSame(0, UserNotification::forUser($mpkTanpaKelas->id)->unread()->count());
     }
 }
