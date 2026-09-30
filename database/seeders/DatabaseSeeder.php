@@ -17,9 +17,16 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
+        // Urutan penting: kelas+mapel dulu (dibutuhkan jadwal),
+        // lalu user (dibutuhkan wali & guru pengampu),
+        // lalu jadwal (dibutuhkan slot jurnal).
         $this->call([
             KelasSeeder::class,
             MataPelajaranSeeder::class,
+            AdminSeeder::class,
+            UserSeeder::class,
+            JadwalSeeder::class,
+            JurnalCekMpkSeeder::class,
         ]);
     }
 }

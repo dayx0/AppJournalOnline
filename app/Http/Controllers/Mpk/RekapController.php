@@ -28,14 +28,21 @@ class RekapController extends Controller
             'kelas_id' => 'nullable|integer|exists:kelas,id',
             'mapel_id' => 'nullable|integer|exists:mata_pelajaran,id',
             'guru_id' => 'nullable|integer|exists:users,id',
-            'status' => 'nullable|in:pending,divalidasi,revisi',
+            'status' => 'nullable|in:menunggu,pending,divalidasi,ditolak,jam_kosong,izin,terlambat',
         ]);
     }
 
     /** @param array<string, mixed> $filters */
-    private function baseQuery(array $filters): Builder
+    private function baseQuery(array $filters, ?int $kelasId): Builder
     {
         $query = Journal::with(['guru', 'kelas', 'mataPelajaran', 'validator']);
+
+        // Kunci utama fitur ini: MPK hanya bisa melihat kelasnya sendiri.
+        // MPK tanpa kelas (null) tidak melihat apapun.
+        if ($kelasId === null) {
+            return $query->whereRaw('0 = 1');
+        }
+        $query->where('kelas_id', $kelasId);
 
         if (! empty($filters['dari'])) {
             $query->whereDate('tanggal', '>=', $filters['dari']);
@@ -45,47 +52,65 @@ class RekapController extends Controller
             $query->whereDate('tanggal', '<=', $filters['sampai']);
         }
 
-        foreach (['kelas_id' => 'kelas_id', 'mapel_id' => 'mapel_id', 'guru_id' => 'guru_id'] as $key => $column) {
+        foreach (['mapel_id' => 'mapel_id', 'guru_id' => 'guru_id'] as $key => $column) {
             if (! empty($filters[$key])) {
                 $query->where($column, $filters[$key]);
             }
         }
+        // Catatan: filter kelas_id dari request sengaja diabaikan —
+        // MPK selalu dikunci ke kelasnya sendiri (lihat where di atas).
 
         return $query;
+    }
+
+    private function mpkKelasId(Request $request): ?int
+    {
+        $kelasId = $request->user()->kelas_id;
+
+        return $kelasId === null ? null : (int) $kelasId;
     }
 
     public function index(Request $request): Response
     {
         $filters = $this->filters($request);
-        $query = $this->baseQuery($filters);
+        $kelasId = $this->mpkKelasId($request);
+        $query = $this->baseQuery($filters, $kelasId);
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        $counter = $this->baseQuery($filters);
+        $counter = $this->baseQuery($filters, $kelasId);
 
         return Inertia::render('mpk/rekap', [
             'jurnals' => $query->orderByDesc('tanggal')->orderByDesc('id')->paginate(15)->withQueryString(),
             'filters' => $request->only(['dari', 'sampai', 'kelas_id', 'mapel_id', 'guru_id', 'status']),
             'summary' => [
                 'total' => (clone $counter)->count(),
-                'pending' => (clone $counter)->where('status', 'pending')->count(),
-                'divalidasi' => (clone $counter)->where('status', 'divalidasi')->count(),
-                'revisi' => (clone $counter)->where('status', 'revisi')->count(),
+                'menunggu' => (clone $counter)->where('status', Journal::STATUS_MENUNGGU)->count(),
+                'pending' => (clone $counter)->where('status', Journal::STATUS_PENDING)->count(),
+                'divalidasi' => (clone $counter)->where('status', Journal::STATUS_DIVALIDASI)->count(),
+                'ditolak' => (clone $counter)->where('status', Journal::STATUS_DITOLAK)->count(),
+                'jam_kosong' => (clone $counter)->where('status', Journal::STATUS_JAM_KOSONG)->count(),
+                'izin' => (clone $counter)->where('status', Journal::STATUS_IZIN)->count(),
+                'terlambat' => (clone $counter)->where('status', Journal::STATUS_TERLAMBAT)->count(),
             ],
             'options' => [
-                'kelas' => ClassRoom::orderBy('nama_kelas')->get(['id', 'nama_kelas']),
+                // Dropdown kelas hanya menampilkan kelas binaan MPK ini.
+                'kelas' => ClassRoom::when($kelasId === null, fn ($q) => $q->whereRaw('0 = 1'))
+                    ->when($kelasId !== null, fn ($q) => $q->where('id', $kelasId))
+                    ->orderBy('nama_kelas')->get(['id', 'nama_kelas']),
                 'mapel' => Subject::orderBy('nama_mapel')->get(['id', 'nama_mapel']),
                 'guru' => User::where('role', 'guru')->orderBy('name')->get(['id', 'name']),
             ],
+            'assignedKelas' => $request->user()->kelas?->only(['id', 'nama_kelas']),
         ]);
     }
 
     public function export(Request $request): StreamedResponse
     {
         $filters = $this->filters($request);
-        $query = $this->baseQuery($filters);
+        $query = $this->baseQuery($filters, $this->mpkKelasId($request));
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);

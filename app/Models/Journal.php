@@ -12,12 +12,13 @@ class Journal extends Model
     protected $table = 'jurnal';
 
     protected $attributes = [
-        'status' => 'pending',
+        'status' => 'menunggu',
     ];
 
     protected $fillable = [
         'guru_id',
         'kelas_id',
+        'jadwal_id',
         'mapel_id',
         'tanggal',
         'jam_mulai',
@@ -34,6 +35,25 @@ class Journal extends Model
     protected function casts(): array
     {
         return ['validated_at' => 'datetime'];
+    }
+
+    public const STATUS_MENUNGGU = 'menunggu';
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_DIVALIDASI = 'divalidasi';
+
+    public const STATUS_DITOLAK = 'ditolak';
+
+    public const STATUS_JAM_KOSONG = 'jam_kosong';
+
+    public const STATUS_IZIN = 'izin';
+
+    public const STATUS_TERLAMBAT = 'terlambat';
+
+    public function jadwal(): BelongsTo
+    {
+        return $this->belongsTo(Jadwal::class, 'jadwal_id');
     }
 
     public function guru(): BelongsTo

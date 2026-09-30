@@ -11,8 +11,28 @@ const AKSI_META: Record<string, { label: string; badgeClass: string }> = {
         badgeClass: 'bg-[#E8F7EE] text-[#16A34A]',
     },
     revisi: {
-        label: 'Revisi',
+        label: 'Revisi (data lama)',
         badgeClass: 'bg-[#FDECEC] text-[#DC2626]',
+    },
+    diisi: {
+        label: 'Diisi guru',
+        badgeClass: 'bg-[#FFF4E0] text-[#D97706]',
+    },
+    ditolak: {
+        label: 'Ditolak (tidak hadir)',
+        badgeClass: 'bg-[#FDECEC] text-[#DC2626]',
+    },
+    jam_kosong: {
+        label: 'Jam kosong',
+        badgeClass: 'bg-[#FDECEC] text-[#991B1B]',
+    },
+    terlambat: {
+        label: 'Hadir (terlambat)',
+        badgeClass: 'bg-[#FFF4E0] text-[#B45309]',
+    },
+    izin: {
+        label: 'Izin / tugas dinas',
+        badgeClass: 'bg-[#EFF4FF] text-[#2563EB]',
     },
     reset_pending: {
         label: 'Diubah • perlu validasi ulang',

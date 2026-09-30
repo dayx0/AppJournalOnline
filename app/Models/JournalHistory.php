@@ -15,6 +15,16 @@ class JournalHistory extends Model
 
     public const AKSI_RESET_PENDING = 'reset_pending';
 
+    public const AKSI_DIISI = 'diisi';
+
+    public const AKSI_DITOLAK = 'ditolak';
+
+    public const AKSI_JAM_KOSONG = 'jam_kosong';
+
+    public const AKSI_TERLAMBAT = 'terlambat';
+
+    public const AKSI_IZIN = 'izin';
+
     protected $fillable = [
         'journal_id',
         'actor_id',

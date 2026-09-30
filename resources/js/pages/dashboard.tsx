@@ -1,5 +1,12 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { BookOpenText, Calendar, Presentation, Users } from 'lucide-react';
+import {
+    BookOpenText,
+    Calendar,
+    CalendarDays,
+    ClipboardList,
+    Presentation,
+    Users,
+} from 'lucide-react';
 import StatCard from '@/components/stat-card';
 import StatusBadge from '@/components/status-badge';
 import { formatTanggal } from '@/lib/format';
@@ -15,9 +22,16 @@ interface Stats {
 interface Props {
     stats: Stats;
     recentJournals: Journal[];
+    slotHariIni: number;
+    kelasWali: { id: number; nama_kelas: string }[];
 }
 
-export default function Dashboard({ stats, recentJournals = [] }: Props) {
+export default function Dashboard({
+    stats,
+    recentJournals = [],
+    slotHariIni = 0,
+    kelasWali = [],
+}: Props) {
     const { auth } = usePage().props as unknown as { auth: Auth };
     const firstName = auth.user.name.split(' ')[0] || auth.user.name;
     const roleLabel = auth.user.role === 'admin' ? 'Admin' : 'Guru';
@@ -54,6 +68,49 @@ export default function Dashboard({ stats, recentJournals = [] }: Props) {
                         </div>
                     </div>
                 </section>
+
+                {/* Tugas hari ini: kartu aksi agar guru awam langsung tahu
+                    harus apa tanpa menebak-nebak menu */}
+                {(slotHariIni > 0 || kelasWali.length > 0) && (
+                    <section className="grid grid-cols-1 gap-3 px-5 pt-3 pb-1 lg:grid-cols-2 lg:gap-4 lg:px-8 lg:pt-5">
+                        {slotHariIni > 0 && (
+                            <Link
+                                href="/jurnal"
+                                className="flex items-center gap-3 rounded-2xl bg-[#2563EB] p-4 text-white lg:p-5"
+                            >
+                                <ClipboardList className="h-8 w-8 shrink-0" />
+                                <span className="flex min-w-0 flex-1 flex-col">
+                                    <span className="text-sm font-bold lg:text-base">
+                                        {slotHariIni} slot menunggu diisi hari
+                                        ini
+                                    </span>
+                                    <span className="text-xs font-normal opacity-80">
+                                        Ketuk untuk mengisi jurnal mengajar
+                                    </span>
+                                </span>
+                            </Link>
+                        )}
+                        {kelasWali.length > 0 && (
+                            <Link
+                                href="/jadwal"
+                                className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-[0px_2px_10px_0px_#0F172A0D] lg:p-5"
+                            >
+                                <CalendarDays className="h-8 w-8 shrink-0 text-[#16A34A]" />
+                                <span className="flex min-w-0 flex-1 flex-col">
+                                    <span className="text-sm font-bold text-[#1A1D26] lg:text-base">
+                                        Kamu wali kelas:{' '}
+                                        {kelasWali
+                                            .map((k) => k.nama_kelas)
+                                            .join(', ')}
+                                    </span>
+                                    <span className="text-xs font-normal text-[#6B7280]">
+                                        Ketuk untuk menyusun jadwal pelajaran
+                                    </span>
+                                </span>
+                            </Link>
+                        )}
+                    </section>
+                )}
 
                 {/* Statistik: 2 kolom di mobile, 4 kolom di desktop */}
                 <section className="grid grid-cols-2 gap-3 px-5 pt-2.5 pb-1 lg:grid-cols-4 lg:gap-4 lg:px-8 lg:pt-5">
@@ -115,14 +172,9 @@ export default function Dashboard({ stats, recentJournals = [] }: Props) {
                                 Belum ada jurnal
                             </p>
                             <p className="text-xs font-normal text-[#6B7280]">
-                                Mulai catat kegiatan mengajar hari ini.
+                                Slot jurnal dibuat otomatis dari jadwal mengajar
+                                setiap hari.
                             </p>
-                            <Link
-                                href="/jurnal/create"
-                                className="mt-1 rounded-full bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white"
-                            >
-                                + Buat Jurnal
-                            </Link>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">

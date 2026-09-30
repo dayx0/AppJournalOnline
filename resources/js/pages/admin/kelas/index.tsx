@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import EmptyState from '@/components/empty-state';
 import FormField, { INPUT_CLASS } from '@/components/form-field';
@@ -12,11 +12,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kelola Kelas', href: '/admin/kelas' },
 ];
 
+type GuruOption = { id: number; name: string };
+
 type Kelas = {
     id: number;
     nama_kelas: string;
     jurusan: string;
     tingkat: number;
+    wali_kelas_id: number | null;
+    wali_kelas?: { id: number; name: string } | null;
 };
 
 type PaginatedKelas = {
@@ -25,11 +29,18 @@ type PaginatedKelas = {
     total: number;
 };
 
-export default function KelasIndex({ kelas }: { kelas: PaginatedKelas }) {
+export default function KelasIndex({
+    kelas,
+    guru,
+}: {
+    kelas: PaginatedKelas;
+    guru: GuruOption[];
+}) {
     const { data, setData, post, reset, errors, processing } = useForm({
         nama_kelas: '',
         jurusan: '',
         tingkat: 10 as number,
+        wali_kelas_id: '' as string,
     });
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState<Kelas | null>(null);
@@ -43,6 +54,7 @@ export default function KelasIndex({ kelas }: { kelas: PaginatedKelas }) {
         nama_kelas: '',
         jurusan: '',
         tingkat: 10 as number,
+        wali_kelas_id: '' as string,
     });
 
     function submit(e: React.FormEvent) {
@@ -67,6 +79,7 @@ export default function KelasIndex({ kelas }: { kelas: PaginatedKelas }) {
             nama_kelas: k.nama_kelas,
             jurusan: k.jurusan,
             tingkat: k.tingkat,
+            wali_kelas_id: k.wali_kelas_id ? String(k.wali_kelas_id) : '',
         });
     }
 
@@ -160,6 +173,38 @@ export default function KelasIndex({ kelas }: { kelas: PaginatedKelas }) {
                                         className={INPUT_CLASS}
                                     />
                                 </FormField>
+                                <FormField
+                                    label="Wali kelas"
+                                    htmlFor="wali_kelas_id"
+                                    error={errors.wali_kelas_id}
+                                >
+                                    <div className="relative">
+                                        <select
+                                            id="wali_kelas_id"
+                                            value={data.wali_kelas_id}
+                                            onChange={(e) =>
+                                                setData(
+                                                    'wali_kelas_id',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className={`${INPUT_CLASS} appearance-none pr-9`}
+                                        >
+                                            <option value="">
+                                                -- Belum ada wali --
+                                            </option>
+                                            {guru.map((g) => (
+                                                <option
+                                                    key={g.id}
+                                                    value={String(g.id)}
+                                                >
+                                                    {g.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                    </div>
+                                </FormField>
                                 <button
                                     type="submit"
                                     disabled={processing}
@@ -234,6 +279,38 @@ export default function KelasIndex({ kelas }: { kelas: PaginatedKelas }) {
                                         className={INPUT_CLASS}
                                     />
                                 </FormField>
+                                <FormField
+                                    label="Wali kelas"
+                                    htmlFor="edit-wali"
+                                    error={editErrors.wali_kelas_id}
+                                >
+                                    <div className="relative">
+                                        <select
+                                            id="edit-wali"
+                                            value={editData.wali_kelas_id}
+                                            onChange={(e) =>
+                                                setEditData(
+                                                    'wali_kelas_id',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className={`${INPUT_CLASS} appearance-none pr-9`}
+                                        >
+                                            <option value="">
+                                                -- Belum ada wali --
+                                            </option>
+                                            {guru.map((g) => (
+                                                <option
+                                                    key={g.id}
+                                                    value={String(g.id)}
+                                                >
+                                                    {g.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                    </div>
+                                </FormField>
                                 <div className="flex gap-2 lg:col-span-2">
                                     <button
                                         type="submit"
@@ -280,6 +357,11 @@ export default function KelasIndex({ kelas }: { kelas: PaginatedKelas }) {
                                         <span className="truncate text-[11px] font-normal text-[#6B7280]">
                                             {k.jurusan} &bull; Tingkat{' '}
                                             {k.tingkat}
+                                        </span>
+                                        <span className="truncate text-[11px] font-normal text-[#6B7280]">
+                                            Wali:{' '}
+                                            {k.wali_kelas?.name ??
+                                                '(belum ditunjuk)'}
                                         </span>
                                     </div>
                                     <span className="flex shrink-0 items-center gap-1">

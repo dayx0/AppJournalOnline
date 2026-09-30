@@ -33,6 +33,8 @@ class UserFactory extends Factory
             // Kolom role milik project (NOT NULL), default guru agar
             // test bawaan starter-kit tetap jalan.
             'role' => 'guru',
+            // MPK baru default belum ditempati di kelas manapun.
+            'kelas_id' => null,
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,

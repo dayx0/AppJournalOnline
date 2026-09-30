@@ -13,9 +13,11 @@ import { formatTanggal } from '@/lib/format';
 import type { Journal } from '@/types';
 
 type Stats = {
+    menunggu: number;
     pending: number;
     divalidasi: number;
-    revisi: number;
+    ditolak: number;
+    jam_kosong: number;
     total: number;
 };
 
@@ -52,12 +54,28 @@ export default function MpkDashboard({
                         iconClass="text-[#16A34A]"
                     />
                     <StatCard
-                        label="Perlu Revisi"
-                        value={String(stats.revisi)}
-                        sub="Dikembalikan ke guru"
+                        label="Ditolak"
+                        value={String(stats.ditolak)}
+                        sub="Guru tidak hadir"
                         icon={AlertTriangle}
                         iconWrapperClass="bg-[#FDECEC]"
                         iconClass="text-[#DC2626]"
+                    />
+                    <StatCard
+                        label="Jam Kosong"
+                        value={String(stats.jam_kosong)}
+                        sub="Slot tidak terisi"
+                        icon={AlertTriangle}
+                        iconWrapperClass="bg-[#FDECEC]"
+                        iconClass="text-[#991B1B]"
+                    />
+                    <StatCard
+                        label="Belum Diisi"
+                        value={String(stats.menunggu)}
+                        sub="Slot menunggu guru"
+                        icon={Clock}
+                        iconWrapperClass="bg-[#F3F4F6]"
+                        iconClass="text-[#6B7280]"
                     />
                     <StatCard
                         label="Total Jurnal"
@@ -71,7 +89,7 @@ export default function MpkDashboard({
 
                 <section className="flex flex-col gap-[18px] px-5 py-3.5 pb-6 lg:px-8 lg:py-6">
                     <h2 className="text-[15px] font-bold whitespace-nowrap text-[#1A1D26] lg:text-lg">
-                        Butuh Perhatian (pending &gt; 24 jam)
+                        Butuh Perhatian (slot telat &gt; 24 jam)
                     </h2>
 
                     {butuhPerhatian.length === 0 ? (
@@ -99,7 +117,8 @@ export default function MpkDashboard({
                                                 {j.kelas?.nama_kelas ?? '-'}
                                             </span>
                                             <span className="line-clamp-2 text-xs font-normal text-[#6B7280]">
-                                                Materi: {j.materi}
+                                                Materi:{' '}
+                                                {j.materi ?? '(belum diisi)'}
                                             </span>
                                         </div>
                                         <ChevronRight className="h-5 w-5 shrink-0 text-[#6B7280]" />

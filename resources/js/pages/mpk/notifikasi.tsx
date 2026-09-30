@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertTriangle, Bell, CircleCheck, Pencil } from 'lucide-react';
+import { AlertTriangle, Bell, CircleCheck, Clock, XCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import EmptyState from '@/components/empty-state';
@@ -12,13 +12,19 @@ import type { Journal } from '@/types';
 interface Props {
     pending: Journal[];
     mendesakIds: number[];
-    revisi: Journal[];
+    menunggu: Journal[];
+    ditolak: Journal[];
     terbaru: Journal[];
-    counts: { pending: number; mendesak: number; revisi: number };
+    counts: {
+        pending: number;
+        mendesak: number;
+        menunggu: number;
+        ditolak: number;
+    };
     unreadKeys?: string[];
 }
 
-type MpkKind = 'mendesak' | 'pending' | 'revisi' | 'info';
+type MpkKind = 'mendesak' | 'pending' | 'menunggu' | 'ditolak' | 'info';
 type MpkFilter = 'semua' | MpkKind;
 
 interface MpkItem {
@@ -32,12 +38,16 @@ interface MpkItem {
     iso: string;
     href: string;
     key?: string;
+    // Untuk aksi cepat sebaris (2-in-1): id jurnal + status aslinya.
+    journalId?: number;
+    journalStatus?: string;
 }
 
 function buildItems(
     pending: Journal[],
     mendesakIds: number[],
-    revisi: Journal[],
+    menunggu: Journal[],
+    ditolak: Journal[],
     terbaru: Journal[],
 ): MpkItem[] {
     const items: MpkItem[] = [];
@@ -62,20 +72,41 @@ function buildItems(
             iso: j.created_at,
             href: `/mpk/jurnal/${j.id}`,
             key: `jurnal.${j.id}.pending`,
+            journalId: j.id,
+            journalStatus: 'pending',
         });
     });
 
-    revisi.forEach((j) => {
+    menunggu.forEach((j) => {
         const guru = j.guru?.name ?? '-';
         const kelas = j.kelas?.nama_kelas ?? '-';
 
         items.push({
-            id: `revisi-${j.id}`,
-            kind: 'revisi',
-            icon: Pencil,
+            id: `menunggu-${j.id}`,
+            kind: 'menunggu',
+            icon: Clock,
+            bubbleClass: 'bg-[#F3F4F6]',
+            iconClass: 'text-[#6B7280]',
+            title: 'Slot belum diisi guru (kandidat jam kosong)',
+            sub: `${guru} • ${kelas} (${formatTanggal(j.tanggal)})`,
+            iso: j.created_at,
+            href: `/mpk/jurnal/${j.id}`,
+            journalId: j.id,
+            journalStatus: 'menunggu',
+        });
+    });
+
+    ditolak.forEach((j) => {
+        const guru = j.guru?.name ?? '-';
+        const kelas = j.kelas?.nama_kelas ?? '-';
+
+        items.push({
+            id: `ditolak-${j.id}`,
+            kind: 'ditolak',
+            icon: XCircle,
             bubbleClass: 'bg-[#FDECEC]',
             iconClass: 'text-[#DC2626]',
-            title: 'Menunggu perbaikan guru (revisi)',
+            title: 'Ditolak: guru tidak hadir di kelas',
             sub: `${guru} • ${kelas} (${formatTanggal(j.tanggal)})`,
             iso: j.validated_at ?? j.updated_at,
             href: `/mpk/jurnal/${j.id}`,
@@ -100,7 +131,15 @@ function buildItems(
     });
 
     const rank = (k: MpkKind) =>
-        k === 'mendesak' ? 0 : k === 'pending' ? 1 : k === 'revisi' ? 2 : 3;
+        k === 'mendesak'
+            ? 0
+            : k === 'pending'
+              ? 1
+              : k === 'menunggu'
+                ? 2
+                : k === 'ditolak'
+                  ? 3
+                  : 4;
 
     return items
         .sort((a, b) => {
@@ -118,7 +157,8 @@ function buildItems(
 export default function MpkNotifikasi({
     pending,
     mendesakIds,
-    revisi,
+    menunggu,
+    ditolak,
     terbaru,
     counts,
     unreadKeys = [],
@@ -127,8 +167,8 @@ export default function MpkNotifikasi({
     const [localRead, setLocalRead] = useState<string[]>([]);
 
     const items = useMemo(
-        () => buildItems(pending, mendesakIds, revisi, terbaru),
-        [pending, mendesakIds, revisi, terbaru],
+        () => buildItems(pending, mendesakIds, menunggu, ditolak, terbaru),
+        [pending, mendesakIds, menunggu, ditolak, terbaru],
     );
 
     const isUnread = (key?: string): boolean =>
@@ -189,11 +229,28 @@ export default function MpkNotifikasi({
         );
     }
 
+    // Aksi cepat 2-in-1: eksekusi langsung dari timeline tanpa buka detail.
+    // Validasi & tandai-kosong catatannya opsional sehingga bisa sebaris;
+    // Tolak wajib alasan -> tetap lewat halaman detail.
+    function aksiCepat(jenis: 'validate' | 'tandai-kosong', id: number) {
+        const pesan =
+            jenis === 'validate'
+                ? 'Validasi jurnal ini? (guru dinyatakan hadir)'
+                : 'Tandai slot ini sebagai jam kosong?';
+
+        if (!confirm(pesan)) {
+            return;
+        }
+
+        router.post(`/mpk/jurnal/${id}/${jenis}`, {}, { preserveScroll: true });
+    }
+
     const filters: { key: MpkFilter; label: string }[] = [
         { key: 'semua', label: `Semua (${items.length})` },
         { key: 'mendesak', label: `Mendesak (${counts.mendesak})` },
         { key: 'pending', label: `Menunggu (${counts.pending})` },
-        { key: 'revisi', label: `Revisi (${counts.revisi})` },
+        { key: 'menunggu', label: `Belum diisi (${counts.menunggu})` },
+        { key: 'ditolak', label: `Ditolak (${counts.ditolak})` },
     ];
 
     return (
@@ -246,38 +303,88 @@ export default function MpkNotifikasi({
                                 const unread = isUnread(item.key);
 
                                 return (
-                                    <Link
+                                    <div
                                         key={item.id}
-                                        href={item.href}
-                                        onClick={(e) => openItem(e, item)}
-                                        className={`flex items-start gap-3 rounded-[14px] border bg-white p-3 ${
+                                        className={`rounded-[14px] border bg-white ${
                                             unread
                                                 ? 'border-[#93C5FD]'
                                                 : 'border-[#E5E9F2]'
                                         }`}
                                     >
-                                        <span
-                                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${item.bubbleClass}`}
+                                        <Link
+                                            href={item.href}
+                                            onClick={(e) => openItem(e, item)}
+                                            className="flex items-start gap-3 p-3"
                                         >
-                                            <Icon
-                                                className={`h-[18px] w-[18px] ${item.iconClass}`}
-                                            />
-                                        </span>
-                                        <span className="flex min-w-0 flex-1 flex-col gap-[11px]">
-                                            <span className="text-[13px] font-semibold text-[#1A1D26]">
-                                                {item.title}
+                                            <span
+                                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${item.bubbleClass}`}
+                                            >
+                                                <Icon
+                                                    className={`h-[18px] w-[18px] ${item.iconClass}`}
+                                                />
                                             </span>
-                                            <span className="text-xs font-normal text-[#6B7280]">
-                                                {item.sub}
+                                            <span className="flex min-w-0 flex-1 flex-col gap-[11px]">
+                                                <span className="text-[13px] font-semibold text-[#1A1D26]">
+                                                    {item.title}
+                                                </span>
+                                                <span className="text-xs font-normal text-[#6B7280]">
+                                                    {item.sub}
+                                                </span>
                                             </span>
-                                        </span>
-                                        <span className="flex shrink-0 flex-col items-end gap-1">
-                                            {unread && <UnreadPill />}
-                                            <span className="text-[10px] font-normal whitespace-nowrap text-[#9CA3AF]">
-                                                {formatRelatif(item.iso)}
+                                            <span className="flex shrink-0 flex-col items-end gap-1">
+                                                {unread && <UnreadPill />}
+                                                <span className="text-[10px] font-normal whitespace-nowrap text-[#9CA3AF]">
+                                                    {formatRelatif(item.iso)}
+                                                </span>
                                             </span>
-                                        </span>
-                                    </Link>
+                                        </Link>
+                                        {item.journalStatus === 'pending' &&
+                                            item.journalId && (
+                                                <div className="flex gap-2 px-3 pb-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            aksiCepat(
+                                                                'validate',
+                                                                item.journalId!,
+                                                            )
+                                                        }
+                                                        className="flex flex-1 items-center justify-center rounded-full bg-[#16A34A] px-4 py-2 text-xs font-bold whitespace-nowrap text-white"
+                                                    >
+                                                        🟩 Validasi Hadir
+                                                    </button>
+                                                    <Link
+                                                        href={item.href}
+                                                        className="flex flex-1 items-center justify-center rounded-full border border-[#E5E9F2] bg-white px-4 py-2 text-xs font-semibold whitespace-nowrap text-[#6B7280]"
+                                                    >
+                                                        Detail / Tolak
+                                                    </Link>
+                                                </div>
+                                            )}
+                                        {item.journalStatus === 'menunggu' &&
+                                            item.journalId && (
+                                                <div className="flex gap-2 px-3 pb-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            aksiCepat(
+                                                                'tandai-kosong',
+                                                                item.journalId!,
+                                                            )
+                                                        }
+                                                        className="flex flex-1 items-center justify-center rounded-full bg-[#DC2626] px-4 py-2 text-xs font-bold whitespace-nowrap text-white"
+                                                    >
+                                                        🟥 Tandai Jam Kosong
+                                                    </button>
+                                                    <Link
+                                                        href={item.href}
+                                                        className="flex flex-1 items-center justify-center rounded-full border border-[#E5E9F2] bg-white px-4 py-2 text-xs font-semibold whitespace-nowrap text-[#6B7280]"
+                                                    >
+                                                        Detail
+                                                    </Link>
+                                                </div>
+                                            )}
+                                    </div>
                                 );
                             })}
                         </div>

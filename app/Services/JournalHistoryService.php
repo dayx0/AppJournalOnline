@@ -35,9 +35,13 @@ final class JournalHistoryService
 
     public static function logKeputusan(Journal $journal, int $mpkId, string $dari): void
     {
-        $aksi = $journal->status === JournalHistory::AKSI_REVISI
-            ? JournalHistory::AKSI_REVISI
-            : JournalHistory::AKSI_DIVALIDASI;
+        // Petakan status akhir -> nama aksi audit. match() dipilih karena
+        // jelas dibaca dibanding rantai if/else untuk banyak cabang.
+        $aksi = match ($journal->status) {
+            Journal::STATUS_DITOLAK => JournalHistory::AKSI_DITOLAK,
+            Journal::STATUS_JAM_KOSONG => JournalHistory::AKSI_JAM_KOSONG,
+            default => JournalHistory::AKSI_DIVALIDASI,
+        };
 
         self::log($journal, $mpkId, $aksi, $dari, $journal->status, $journal->validation_note);
     }

@@ -168,61 +168,73 @@ export default function Show({
                     <h1 className="min-w-0 flex-1 text-center text-[17px] font-semibold whitespace-nowrap text-[#1A1D26] lg:text-left lg:text-2xl lg:font-bold">
                         Detail Jurnal
                     </h1>
-                    <div className="relative shrink-0">
-                        <button
-                            type="button"
-                            onClick={() => setMenuOpen((open) => !open)}
-                            aria-label="Menu jurnal"
-                            aria-expanded={menuOpen}
-                            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white lg:bg-white"
-                        >
-                            <EllipsisVertical className="h-[22px] w-[22px] text-[#1A1D26]" />
-                        </button>
-                        {menuOpen && (
-                            <>
+                    {/* Jurnal final (divalidasi/ditolak/izin) tidak bisa diubah:
+                        backend menolak dengan 422, jadi tombol disembunyikan. */}
+                    {journal.status !== 'divalidasi' &&
+                        journal.status !== 'ditolak' &&
+                        journal.status !== 'izin' && (
+                            <div className="relative shrink-0">
                                 <button
                                     type="button"
-                                    aria-label="Tutup menu"
-                                    onClick={() => setMenuOpen(false)}
-                                    className="fixed inset-0 z-10 cursor-default"
-                                />
-                                <div className="absolute top-full right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[#E5E9F2] bg-white py-1 shadow-[0px_8px_24px_0px_#0F172A1A]">
-                                    <Link
-                                        href={`/jurnal/${journal.id}/edit`}
-                                        onClick={() => setMenuOpen(false)}
-                                        className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-[#1A1D26] transition hover:bg-[#F6F8FC]"
-                                    >
-                                        <Pencil className="h-4 w-4 text-[#6B7280]" />
-                                        Edit Jurnal
-                                    </Link>
-                                    <button
-                                        type="button"
-                                        onClick={hapusJurnal}
-                                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] font-medium text-[#DC2626] transition hover:bg-[#FDECEC]"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                        Hapus Jurnal
-                                    </button>
-                                </div>
-                            </>
+                                    onClick={() => setMenuOpen((open) => !open)}
+                                    aria-label="Menu jurnal"
+                                    aria-expanded={menuOpen}
+                                    className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white lg:bg-white"
+                                >
+                                    <EllipsisVertical className="h-[22px] w-[22px] text-[#1A1D26]" />
+                                </button>
+                                {menuOpen && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            aria-label="Tutup menu"
+                                            onClick={() => setMenuOpen(false)}
+                                            className="fixed inset-0 z-10 cursor-default"
+                                        />
+                                        <div className="absolute top-full right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[#E5E9F2] bg-white py-1 shadow-[0px_8px_24px_0px_#0F172A1A]">
+                                            <Link
+                                                href={`/jurnal/${journal.id}/edit`}
+                                                onClick={() =>
+                                                    setMenuOpen(false)
+                                                }
+                                                className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-[#1A1D26] transition hover:bg-[#F6F8FC]"
+                                            >
+                                                <Pencil className="h-4 w-4 text-[#6B7280]" />
+                                                Edit Jurnal
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={hapusJurnal}
+                                                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] font-medium text-[#DC2626] transition hover:bg-[#FDECEC]"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Hapus Jurnal
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         )}
-                    </div>
                 </section>
 
                 <div className="grid grid-cols-1 gap-3 px-4 pt-3 pb-6 lg:grid-cols-5 lg:gap-4 lg:px-8 lg:py-6">
-                    {journal.status === 'revisi' && journal.validation_note && (
-                        <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-3.5 lg:col-span-5">
-                            <p className="text-[11px] font-semibold text-[#DC2626]">
-                                Catatan revisi dari MPK
-                                {journal.validator?.name
-                                    ? ` • ${journal.validator.name}`
-                                    : ''}
-                            </p>
-                            <p className="mt-1 text-[13px] font-normal whitespace-pre-line text-[#1A1D26]">
-                                {journal.validation_note}
-                            </p>
-                        </div>
-                    )}
+                    {(journal.status === 'ditolak' ||
+                        journal.status === 'jam_kosong') &&
+                        journal.validation_note && (
+                            <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-3.5 lg:col-span-5">
+                                <p className="text-[11px] font-semibold text-[#DC2626]">
+                                    {journal.status === 'ditolak'
+                                        ? 'Jurnal ditolak MPK: guru tidak hadir'
+                                        : 'Dinyatakan jam kosong oleh MPK'}
+                                    {journal.validator?.name
+                                        ? ` • ${journal.validator.name}`
+                                        : ''}
+                                </p>
+                                <p className="mt-1 text-[13px] font-normal whitespace-pre-line text-[#1A1D26]">
+                                    {journal.validation_note}
+                                </p>
+                            </div>
+                        )}
                     {journal.status === 'divalidasi' &&
                         journal.validation_note && (
                             <div className="rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-3.5 lg:col-span-5">

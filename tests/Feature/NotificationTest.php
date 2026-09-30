@@ -27,6 +27,7 @@ class NotificationTest extends TestCase
     {
         [$kelas, $mapel] = $this->makeMaster();
 
+        // Jurnal "terisi" (pending): materi sudah ada, tinggal antre validasi MPK.
         return Journal::create([
             'guru_id' => $guru->id,
             'kelas_id' => $kelas->id,
@@ -36,26 +37,35 @@ class NotificationTest extends TestCase
             'jam_selesai' => '08:30',
             'materi' => 'Aljabar',
             'kegiatan' => 'Ceramah dan latihan',
+            'status' => 'pending',
         ]);
     }
 
-    public function test_mpk_mendapat_antrean_unread_saat_guru_membuat_jurnal()
+    public function test_mpk_mendapat_antrean_unread_saat_guru_mengisi_slot()
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $mpk = User::factory()->create(['role' => 'mpk']);
         [$kelas, $mapel] = $this->makeMaster();
+        // MPK ditempati di kelas yang sama agar dapat notifikasi jurnal itu.
+        $mpk = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelas->id]);
 
-        $this->actingAs($guru)->post(route('jurnal.store'), [
+        // Alur baru: slot menunggu (dari scheduler) diisi guru via update.
+        $slot = Journal::create([
+            'guru_id' => $guru->id,
             'kelas_id' => $kelas->id,
             'mapel_id' => $mapel->id,
             'tanggal' => now()->toDateString(),
             'jam_mulai' => '07:00',
             'jam_selesai' => '08:30',
+            'status' => 'menunggu',
+        ]);
+
+        $this->actingAs($guru)->put(route('jurnal.update', $slot), [
             'materi' => 'Aljabar',
             'kegiatan' => 'Ceramah',
         ])->assertRedirect(route('jurnal.index'));
 
-        $journal = Journal::first();
+        $journal = $slot->fresh();
+        $this->assertSame('pending', $journal->status);
         $this->assertDatabaseHas('user_notifications', [
             'user_id' => $mpk->id,
             'key' => "jurnal.{$journal->id}.pending",
@@ -69,6 +79,8 @@ class NotificationTest extends TestCase
         $guru = User::factory()->create(['role' => 'guru']);
         $mpk = User::factory()->create(['role' => 'mpk']);
         $journal = $this->makeJournal($guru);
+        // Tempatkan MPK di kelas jurnal sebelum notifikasi & validasi.
+        $mpk->update(['kelas_id' => $journal->kelas_id]);
 
         // Simulasi antrean pending yang dibuat saat jurnal dibuat
         JournalNotificationService::notifyMpkNewJournal($journal);
@@ -92,6 +104,7 @@ class NotificationTest extends TestCase
         $guru = User::factory()->create(['role' => 'guru']);
         $mpk = User::factory()->create(['role' => 'mpk']);
         $journal = $this->makeJournal($guru);
+        $mpk->update(['kelas_id' => $journal->kelas_id]);
         JournalNotificationService::notifyMpkNewJournal($journal);
 
         $key = "jurnal.{$journal->id}.pending";
@@ -114,6 +127,7 @@ class NotificationTest extends TestCase
         $guru = User::factory()->create(['role' => 'guru']);
         $mpk = User::factory()->create(['role' => 'mpk']);
         $journal = $this->makeJournal($guru);
+        $mpk->update(['kelas_id' => $journal->kelas_id]);
         JournalNotificationService::notifyMpkNewJournal($journal);
 
         $this->actingAs($mpk)->get(route('mpk.jurnal.show', $journal))->assertOk();

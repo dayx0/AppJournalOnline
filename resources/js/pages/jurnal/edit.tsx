@@ -1,17 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, ChevronDown, Save, SquarePen } from 'lucide-react';
+import { ArrowLeft, Save, SquarePen } from 'lucide-react';
 import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
-
-interface Kelas {
-    id: number;
-    nama_kelas: string;
-}
-
-interface MataPelajaran {
-    id: number;
-    nama_mapel: string;
-}
 
 interface Journal {
     id: number;
@@ -21,30 +11,25 @@ interface Journal {
     tanggal: string;
     jam_mulai: string;
     jam_selesai: string;
-    materi: string;
-    kegiatan: string;
+    // Nullable: slot menunggu belum punya isi (lihat migration
+    // make_jurnal_materi_nullable). Form harus tahan terhadap null.
+    materi: string | null;
+    kegiatan: string | null;
     catatan: string | null;
+    status: string;
+    kelas?: { nama_kelas: string } | null;
+    mataPelajaran?: { nama_mapel: string } | null;
 }
 
 interface Props {
     journal: Journal;
-    kelas: Kelas[];
-    mataPelajaran: MataPelajaran[];
 }
 
 interface FormData {
-    kelas_id: string;
-    mapel_id: string;
-    tanggal: string;
-    jam_mulai: string;
-    jam_selesai: string;
     materi: string;
     kegiatan: string;
     catatan: string;
 }
-
-const INPUT_CLASS =
-    'h-11 w-full rounded-[10px] border border-[#E5E9F2] bg-white px-3 text-[13px] font-normal text-[#1A1D26] outline-none placeholder:text-[#9CA3AF] focus:border-[#2563EB]';
 
 function Field({
     label,
@@ -71,25 +56,22 @@ function Field({
     );
 }
 
-function Counter({ value, max = 500 }: { value: string; max?: number }) {
+function Counter({ value, max = 500 }: { value: string | null; max?: number }) {
     return (
         <div className="flex justify-end">
             <span className="text-[10px] font-normal whitespace-nowrap text-[#9CA3AF]">
-                {value.length}/{max}
+                {(value ?? '').length}/{max}
             </span>
         </div>
     );
 }
 
-export default function Edit({ journal, kelas, mataPelajaran }: Props) {
+export default function Edit({ journal }: Props) {
+    const isSlotKosong = journal.materi === null && journal.kegiatan === null;
     const { data, setData, put, processing, errors } = useForm<FormData>({
-        kelas_id: String(journal.kelas_id),
-        mapel_id: String(journal.mapel_id),
-        tanggal: journal.tanggal,
-        jam_mulai: journal.jam_mulai.slice(0, 5),
-        jam_selesai: journal.jam_selesai.slice(0, 5),
-        materi: journal.materi,
-        kegiatan: journal.kegiatan,
+        // ?? '' = pengaman utama: null dari DB tidak boleh masuk ke state.
+        materi: journal.materi ?? '',
+        kegiatan: journal.kegiatan ?? '',
         catatan: journal.catatan ?? '',
     });
 
@@ -116,10 +98,12 @@ export default function Edit({ journal, kelas, mataPelajaran }: Props) {
                     </Link>
                     <div className="min-w-0 flex-1 text-center lg:text-left">
                         <h1 className="text-base font-bold whitespace-nowrap text-[#1A1D26] lg:text-2xl">
-                            Edit Jurnal
+                            {isSlotKosong ? 'Isi Jurnal' : 'Edit Jurnal'}
                         </h1>
                         <p className="mt-0.5 hidden text-sm font-normal text-[#6B7280] lg:block">
-                            Perbarui detail jurnal mengajar di bawah ini.
+                            {isSlotKosong
+                                ? 'Isi slot jadwal mengajar di bawah ini.'
+                                : 'Perbarui detail jurnal mengajar di bawah ini.'}
                         </p>
                     </div>
                     <span
@@ -132,108 +116,22 @@ export default function Edit({ journal, kelas, mataPelajaran }: Props) {
                     onSubmit={submit}
                     className="grid grid-cols-1 gap-3 px-4 pt-2 pb-6 lg:grid-cols-2 lg:gap-4 lg:px-8 lg:py-6"
                 >
-                    {/* Kolom kiri: Kelas, Mapel, Tanggal, Jam */}
+                    {/* Kolom kiri: identitas slot (read-only, dari jadwal) + absensi */}
                     <div className="flex flex-col gap-3 lg:gap-4">
-                        <Field
-                            label="Kelas *"
-                            htmlFor="kelas_id"
-                            error={errors.kelas_id}
-                        >
-                            <div className="relative">
-                                <select
-                                    id="kelas_id"
-                                    value={data.kelas_id}
-                                    onChange={(e) =>
-                                        setData('kelas_id', e.target.value)
-                                    }
-                                    className={`${INPUT_CLASS} appearance-none pr-9 ${data.kelas_id === '' ? 'text-[#9CA3AF]' : ''}`}
-                                >
-                                    <option value="">Pilih Kelas</option>
-                                    {kelas.map((item) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.nama_kelas}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
-                            </div>
-                        </Field>
-
-                        <Field
-                            label="Mata Pelajaran *"
-                            htmlFor="mapel_id"
-                            error={errors.mapel_id}
-                        >
-                            <div className="relative">
-                                <select
-                                    id="mapel_id"
-                                    value={data.mapel_id}
-                                    onChange={(e) =>
-                                        setData('mapel_id', e.target.value)
-                                    }
-                                    className={`${INPUT_CLASS} appearance-none pr-9 ${data.mapel_id === '' ? 'text-[#9CA3AF]' : ''}`}
-                                >
-                                    <option value="">
-                                        Pilih Mata Pelajaran
-                                    </option>
-                                    {mataPelajaran.map((item) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.nama_mapel}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
-                            </div>
-                        </Field>
-
-                        <Field
-                            label="Tanggal *"
-                            htmlFor="tanggal"
-                            error={errors.tanggal}
-                        >
-                            <input
-                                id="tanggal"
-                                type="date"
-                                value={data.tanggal}
-                                onChange={(e) =>
-                                    setData('tanggal', e.target.value)
-                                }
-                                className={INPUT_CLASS}
-                            />
-                        </Field>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <Field
-                                label="Jam Mulai *"
-                                htmlFor="jam_mulai"
-                                error={errors.jam_mulai}
-                            >
-                                <input
-                                    id="jam_mulai"
-                                    type="time"
-                                    value={data.jam_mulai}
-                                    onChange={(e) =>
-                                        setData('jam_mulai', e.target.value)
-                                    }
-                                    className={INPUT_CLASS}
-                                />
-                            </Field>
-
-                            <Field
-                                label="Jam Selesai *"
-                                htmlFor="jam_selesai"
-                                error={errors.jam_selesai}
-                            >
-                                <input
-                                    id="jam_selesai"
-                                    type="time"
-                                    value={data.jam_selesai}
-                                    onChange={(e) =>
-                                        setData('jam_selesai', e.target.value)
-                                    }
-                                    className={INPUT_CLASS}
-                                />
-                            </Field>
+                        <div className="flex flex-col gap-1.5 rounded-[10px] border border-[#E5E9F2] bg-[#F6F8FC] p-3">
+                            <span className="text-xs font-semibold whitespace-nowrap text-[#1A1D26]">
+                                {journal.kelas?.nama_kelas ?? '-'} &bull;{' '}
+                                {journal.mataPelajaran?.nama_mapel ?? '-'}
+                            </span>
+                            <span className="text-xs font-normal text-[#6B7280]">
+                                {journal.tanggal} &bull;{' '}
+                                {journal.jam_mulai.slice(0, 5)} –{' '}
+                                {journal.jam_selesai.slice(0, 5)}
+                            </span>
+                            <span className="text-[11px] font-normal text-[#9CA3AF]">
+                                Kelas, mapel, dan jam berasal dari jadwal dan
+                                tidak dapat diubah di sini.
+                            </span>
                         </div>
 
                         <Link

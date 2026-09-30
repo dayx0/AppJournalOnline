@@ -8,6 +8,7 @@ import {
     ClipboardCheck,
     ClipboardList,
     Bell,
+    CalendarDays,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -24,7 +25,7 @@ import {
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
-    const { auth, unreadCount } = usePage<any>().props;
+    const { auth, unreadCount, isWali } = usePage<any>().props;
     const isAdmin = auth?.user?.role === 'admin';
     const isMpk = auth?.user?.role === 'mpk';
     // Badge unread beneran; admin tidak punya antrean notifikasi.
@@ -67,6 +68,17 @@ export function AppSidebar() {
                       href: '/jurnal',
                       icon: BookOpen,
                   },
+                  // Menu Jadwal hanya untuk admin + wali kelas. Guru biasa
+                  // melihat jadwal pribadinya lewat halaman Jurnal.
+                  ...(isWali || isAdmin
+                      ? [
+                            {
+                                title: 'Jadwal Pelajaran',
+                                href: '/jadwal',
+                                icon: CalendarDays,
+                            },
+                        ]
+                      : []),
                   {
                       title: 'Notifikasi',
                       href: '/notifikasi',

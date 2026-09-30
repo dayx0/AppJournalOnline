@@ -21,7 +21,14 @@ export interface JournalAbsensi {
     alpha: number;
 }
 
-export type ValidationStatus = 'pending' | 'divalidasi' | 'revisi';
+export type ValidationStatus =
+    | 'menunggu'
+    | 'pending'
+    | 'divalidasi'
+    | 'ditolak'
+    | 'jam_kosong'
+    | 'izin'
+    | 'terlambat';
 
 export interface JournalValidator {
     id: number;
@@ -29,7 +36,15 @@ export interface JournalValidator {
 }
 
 export type JournalHistoryAksi =
-    'dibuat' | 'divalidasi' | 'revisi' | 'reset_pending';
+    | 'dibuat'
+    | 'diisi'
+    | 'divalidasi'
+    | 'ditolak'
+    | 'jam_kosong'
+    | 'terlambat'
+    | 'izin'
+    | 'revisi'
+    | 'reset_pending';
 
 export interface JournalHistory {
     id: number;
@@ -48,8 +63,9 @@ export interface Journal {
     tanggal: string;
     jam_mulai: string;
     jam_selesai: string;
-    materi: string;
-    kegiatan: string;
+    // Nullable: slot menunggu yang belum diisi guru belum punya materi/kegiatan.
+    materi: string | null;
+    kegiatan: string | null;
     catatan: string | null;
     created_at: string;
     updated_at: string;

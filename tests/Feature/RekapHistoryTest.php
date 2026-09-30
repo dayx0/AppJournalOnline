@@ -39,27 +39,39 @@ class RekapHistoryTest extends TestCase
         ]);
     }
 
-    public function test_riwayat_tercatat_saat_dibuat_divalidasi_dan_reset()
+    public function test_riwayat_tercatat_saat_diisi_divalidasi_dan_final()
     {
         $guru = User::factory()->create(['role' => 'guru']);
         $mpk = User::factory()->create(['role' => 'mpk']);
         [$kelas, $mapel] = $this->master();
 
-        // Dibuat via HTTP agar trigger controller ikut jalan
-        $this->actingAs($guru)->post(route('jurnal.store'), [
+        // Slot menunggu (seolah dari scheduler), diisi guru via HTTP
+        // agar trigger controller ikut jalan: menunggu -> pending.
+        // Tanggal = hari ini (guard: guru hanya boleh isi slot hari ini).
+        $slot = Journal::create([
+            'guru_id' => $guru->id,
             'kelas_id' => $kelas->id,
             'mapel_id' => $mapel->id,
-            'tanggal' => '2026-09-10',
+            'tanggal' => now()->toDateString(),
             'jam_mulai' => '07:00',
             'jam_selesai' => '08:30',
+            'status' => 'menunggu',
+        ]);
+
+        $this->actingAs($guru)->put(route('jurnal.update', $slot), [
             'materi' => 'Aljabar',
             'kegiatan' => 'Ceramah',
         ])->assertRedirect(route('jurnal.index'));
 
-        $journal = Journal::first();
+        $journal = $slot->fresh();
+        $this->assertSame('pending', $journal->status);
+        // MPK harus ditempati di kelas jurnal agar boleh memvalidasi.
+        $mpk->update(['kelas_id' => $journal->kelas_id]);
+
         $this->assertDatabaseHas('journal_histories', [
             'journal_id' => $journal->id,
-            'aksi' => 'dibuat',
+            'aksi' => 'diisi',
+            'dari_status' => 'menunggu',
             'ke_status' => 'pending',
         ]);
 
@@ -74,36 +86,41 @@ class RekapHistoryTest extends TestCase
             'ke_status' => 'divalidasi',
         ]);
 
-        // Guru ubah -> reset ke pending + riwayat reset
+        // Jurnal final tidak bisa diubah lagi (dulu: reset ke pending).
         $this->actingAs($guru)->put(route('jurnal.update', $journal), [
-            'kelas_id' => $journal->kelas_id,
-            'mapel_id' => $journal->mapel_id,
-            'tanggal' => '2026-09-10',
-            'jam_mulai' => '07:00',
-            'jam_selesai' => '08:30',
             'materi' => 'Aljabar revisi',
             'kegiatan' => 'Ceramah',
-        ])->assertRedirect(route('jurnal.index'));
-        $this->assertDatabaseHas('journal_histories', [
-            'journal_id' => $journal->id,
-            'aksi' => 'reset_pending',
-            'dari_status' => 'divalidasi',
-            'ke_status' => 'pending',
-        ]);
+        ])->assertStatus(422);
+        $this->assertSame('divalidasi', $journal->fresh()->status);
 
-        // Riwayat tampil di kedua halaman detail
+        // Riwayat tampil di kedua halaman detail (2 entri: diisi + divalidasi)
         $this->actingAs($guru)->get(route('jurnal.show', $journal))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('jurnal/show')->has('histories', 3));
+            ->assertInertia(fn (Assert $page) => $page->component('jurnal/show')->has('histories', 2));
         $this->actingAs($mpk)->get(route('mpk.jurnal.show', $journal))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('mpk/jurnal/show')->has('histories', 3));
+            ->assertInertia(fn (Assert $page) => $page->component('mpk/jurnal/show')->has('histories', 2));
     }
 
     public function test_rekap_filter_ringkasan_dan_export_csv()
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $mpk = User::factory()->create(['role' => 'mpk']);
-        $this->journal($guru, '2026-09-05', 'divalidasi');
-        $this->journal($guru, '2026-09-12', 'pending');
+        [$kelas, $mapel] = $this->master();
+        // MPK ditempati di kelas yang sama dengan kedua jurnal uji.
+        $mpk = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelas->id]);
+
+        $makeJournal = fn (string $tanggal, string $status) => Journal::create([
+            'guru_id' => $guru->id,
+            'kelas_id' => $kelas->id,
+            'mapel_id' => $mapel->id,
+            'tanggal' => $tanggal,
+            'jam_mulai' => '07:00',
+            'jam_selesai' => '08:30',
+            'materi' => 'Aljabar',
+            'kegiatan' => 'Ceramah',
+            'status' => $status,
+        ]);
+
+        $makeJournal('2026-09-05', 'divalidasi');
+        $makeJournal('2026-09-12', 'pending');
 
         // Filter rentang tanggal: hanya 1 yang masuk
         $this->actingAs($mpk)->get(route('mpk.rekap.index', ['dari' => '2026-09-10', 'sampai' => '2026-09-15']))

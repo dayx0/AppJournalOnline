@@ -34,14 +34,25 @@ final class JournalNotificationService
         );
     }
 
-    /** @return list<int> */
-    public static function mpkUserIds(): array
+    /**
+     * @return list<int>
+     *                   Kalau $kelasId diisi, hanya MPK yang ditempati di kelas itu.
+     *                   Kalau null (tanpa filter), semua MPK — dipakai untuk kasus umum.
+     */
+    public static function mpkUserIds(?int $kelasId = null): array
     {
-        return User::where('role', 'mpk')->pluck('id')->all();
+        $query = User::where('role', 'mpk');
+
+        if ($kelasId !== null) {
+            $query->where('kelas_id', $kelasId);
+        }
+
+        return $query->pluck('id')->all();
     }
 
     /**
-     * Jurnal baru / kembali pending -> semua MPK dapat antrean unread.
+     * Jurnal baru / kembali pending -> hanya MPK kelas tersebut
+     * yang dapat antrean unread (bukan semua MPK).
      */
     public static function notifyMpkNewJournal(Journal $journal): void
     {
@@ -50,7 +61,7 @@ final class JournalNotificationService
         $kelas = $journal->kelas?->nama_kelas ?? '-';
         $mapel = $journal->mataPelajaran?->nama_mapel ?? '-';
 
-        foreach (self::mpkUserIds() as $mpkId) {
+        foreach (self::mpkUserIds((int) $journal->kelas_id) as $mpkId) {
             self::push(
                 $mpkId,
                 $journal,
@@ -63,19 +74,27 @@ final class JournalNotificationService
     }
 
     /**
-     * Keputusan MPK (divalidasi / revisi) -> guru pemilik dapat unread.
+     * Keputusan MPK (divalidasi / ditolak / jam_kosong) -> guru pemilik dapat unread.
      * Antrean pending jurnal ini untuk semua MPK ikut dibersihkan
      * karena sudah tidak actionable lagi.
      */
     public static function notifyGuruDecision(Journal $journal): void
     {
         $journal->loadMissing(['guru', 'kelas', 'mataPelajaran', 'validator']);
-        $kind = $journal->status === 'revisi' ? 'revisi' : 'divalidasi';
+        $kind = match ($journal->status) {
+            Journal::STATUS_DITOLAK => 'ditolak',
+            Journal::STATUS_JAM_KOSONG => 'jam_kosong',
+            default => 'divalidasi',
+        };
         $kelas = $journal->kelas?->nama_kelas ?? '-';
         $mapel = $journal->mataPelajaran?->nama_mapel ?? '-';
         $oleh = $journal->validator?->name;
 
-        $title = $kind === 'revisi' ? 'Jurnal perlu revisi' : 'Jurnal telah divalidasi';
+        $title = match ($kind) {
+            'ditolak' => 'Jurnal ditolak: guru tidak hadir',
+            'jam_kosong' => 'Jam pelajaran dinyatakan kosong',
+            default => 'Jurnal telah divalidasi',
+        };
         $body = $journal->validation_note
             ? $journal->validation_note.($oleh ? " • {$oleh}" : '')
             : "{$kelas} • {$mapel}".($oleh ? " • {$oleh}" : '');
@@ -91,7 +110,7 @@ final class JournalNotificationService
     public static function notifyResetToPending(Journal $journal): void
     {
         UserNotification::where('journal_id', $journal->id)
-            ->whereIn('kind', ['divalidasi', 'revisi'])
+            ->whereIn('kind', ['divalidasi', 'ditolak'])
             ->delete();
 
         self::notifyMpkNewJournal($journal);

@@ -94,7 +94,8 @@ export default function Profil() {
     const cleanup = useMobileNavigation();
     const user = auth.user;
     const isAdmin = user.role === 'admin';
-    const roleLabel = isAdmin ? 'Admin' : 'Guru';
+    const roleLabel =
+        user.role === 'admin' ? 'Admin' : user.role === 'mpk' ? 'MPK' : 'Guru';
 
     function handleLogout() {
         if (!confirm('Yakin ingin keluar dari aplikasi?')) {

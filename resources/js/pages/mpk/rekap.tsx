@@ -39,9 +39,13 @@ type Options = {
 
 type Summary = {
     total: number;
+    menunggu: number;
     pending: number;
     divalidasi: number;
-    revisi: number;
+    ditolak: number;
+    jam_kosong: number;
+    izin: number;
+    terlambat: number;
 };
 
 const ALL = 'semua';
@@ -209,12 +213,20 @@ export default function Rekap({
                         iconClass="text-[#16A34A]"
                     />
                     <StatCard
-                        label="Perlu Revisi"
-                        value={String(summary.revisi)}
-                        sub="Dikembalikan ke guru"
+                        label="Ditolak"
+                        value={String(summary.ditolak)}
+                        sub="Guru tidak hadir"
                         icon={AlertTriangle}
                         iconWrapperClass="bg-[#FDECEC]"
                         iconClass="text-[#DC2626]"
+                    />
+                    <StatCard
+                        label="Jam Kosong"
+                        value={String(summary.jam_kosong)}
+                        sub="Slot tidak terisi"
+                        icon={AlertTriangle}
+                        iconWrapperClass="bg-[#FDECEC]"
+                        iconClass="text-[#991B1B]"
                     />
                     <StatCard
                         label="Total Jurnal"
@@ -295,9 +307,13 @@ export default function Rekap({
                             onChange={setStatus}
                             placeholder="Semua status"
                         >
-                            <option value="pending">Menunggu</option>
+                            <option value="menunggu">Belum diisi</option>
+                            <option value="pending">Menunggu validasi</option>
                             <option value="divalidasi">Divalidasi</option>
-                            <option value="revisi">Revisi</option>
+                            <option value="ditolak">Ditolak</option>
+                            <option value="jam_kosong">Jam kosong</option>
+                            <option value="izin">Izin</option>
+                            <option value="terlambat">Terlambat</option>
                         </FilterSelect>
                     </div>
                     <div className="mt-3 flex gap-2">

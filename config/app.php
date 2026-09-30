@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Sekolah di Indonesia: default WIB agar scheduler 00:00, slot "hari ini",
+    // dan penanda real-time mengikuti hari/jam dinding sekolah (bukan UTC).
+    // Bisa dioverride via APP_TIMEZONE di .env.
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
 
     /*
     |--------------------------------------------------------------------------

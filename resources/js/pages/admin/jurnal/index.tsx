@@ -61,7 +61,8 @@ export default function JurnalMonitor({
                                             <span className="line-clamp-2 text-xs font-normal text-[#6B7280]">
                                                 {j.mataPelajaran?.nama_mapel ??
                                                     '-'}{' '}
-                                                &bull; {j.materi}
+                                                &bull;{' '}
+                                                {j.materi ?? '(belum diisi)'}
                                             </span>
                                         </div>
                                         <ChevronRight className="h-5 w-5 shrink-0 text-[#6B7280]" />

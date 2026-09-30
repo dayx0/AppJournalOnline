@@ -10,11 +10,17 @@ import type { Journal } from '@/types';
 
 interface Props {
     journals: Journal[];
-    counts?: { pending: number; revisi: number; divalidasi: number };
+    counts?: {
+        menunggu: number;
+        pending: number;
+        divalidasi: number;
+        ditolak: number;
+        jam_kosong: number;
+    };
     unreadKeys?: string[];
 }
 
-type NotifKind = 'validasi' | 'sistem' | 'revisi';
+type NotifKind = 'validasi' | 'sistem' | 'ditolak' | 'jam_kosong';
 type NotifFilter = 'semua' | NotifKind;
 
 interface NotifItem {
@@ -34,7 +40,8 @@ interface NotifItem {
 
 const FILTERS: { key: NotifFilter; label: string }[] = [
     { key: 'semua', label: 'Semua' },
-    { key: 'revisi', label: 'Revisi' },
+    { key: 'ditolak', label: 'Ditolak' },
+    { key: 'jam_kosong', label: 'Jam kosong' },
     { key: 'validasi', label: 'Validasi' },
     { key: 'sistem', label: 'Sistem' },
 ];
@@ -86,20 +93,35 @@ function buildNotifications(journals: Journal[]): NotifItem[] {
         const statusIso = journal.validated_at ?? journal.updated_at;
         const validatorName = journal.validator?.name;
 
-        if (status === 'revisi') {
+        if (status === 'ditolak') {
             items.push({
                 id: `val-${journal.id}`,
-                kind: 'revisi',
+                kind: 'ditolak',
                 icon: Pencil,
                 bubbleClass: 'bg-[#FDECEC]',
                 iconClass: 'text-[#DC2626]',
-                title: 'Jurnal perlu revisi',
+                title: 'Jurnal ditolak: guru tidak hadir',
                 sub: journal.validation_note
                     ? `${journal.validation_note.slice(0, 80)}${validatorName ? ` • ${validatorName}` : ''}`
                     : `${kelas} • ${mapel}${validatorName ? ` • ${validatorName}` : ''}`,
                 iso: statusIso,
                 href,
-                key: `jurnal.${journal.id}.revisi`,
+                key: `jurnal.${journal.id}.ditolak`,
+            });
+        } else if (status === 'jam_kosong') {
+            items.push({
+                id: `val-${journal.id}`,
+                kind: 'jam_kosong',
+                icon: Pencil,
+                bubbleClass: 'bg-[#FDECEC]',
+                iconClass: 'text-[#991B1B]',
+                title: 'Jam pelajaran dinyatakan kosong',
+                sub: journal.validation_note
+                    ? `${journal.validation_note.slice(0, 80)}${validatorName ? ` • ${validatorName}` : ''}`
+                    : `${kelas} • ${mapel}${validatorName ? ` • ${validatorName}` : ''}`,
+                iso: statusIso,
+                href,
+                key: `jurnal.${journal.id}.jam_kosong`,
             });
         } else if (status === 'divalidasi') {
             items.push({
@@ -134,8 +156,9 @@ function buildNotifications(journals: Journal[]): NotifItem[] {
 
     return items
         .sort((a, b) => {
-            // Revisi selalu paling atas, lalu terbaru
-            const rank = (k: NotifKind) => (k === 'revisi' ? 0 : 1);
+            // Ditolak & jam kosong selalu paling atas, lalu terbaru
+            const rank = (k: NotifKind) =>
+                k === 'ditolak' ? 0 : k === 'jam_kosong' ? 1 : 2;
             const dr = rank(a.kind) - rank(b.kind);
 
             if (dr !== 0) {
@@ -227,8 +250,12 @@ export default function Notifikasi({
             return null;
         }
 
-        if (key === 'revisi') {
-            return counts.revisi;
+        if (key === 'ditolak') {
+            return counts.ditolak;
+        }
+
+        if (key === 'jam_kosong') {
+            return counts.jam_kosong;
         }
 
         if (key === 'validasi') {
@@ -261,9 +288,10 @@ export default function Notifikasi({
                             Notifikasi
                         </h1>
                         <p className="mt-0.5 hidden text-sm font-normal text-[#6B7280] lg:block">
-                            {counts && counts.revisi > 0 ? (
+                            {counts && counts.ditolak > 0 ? (
                                 <span className="font-semibold text-[#DC2626]">
-                                    {counts.revisi} jurnal perlu revisi
+                                    {counts.ditolak} jurnal ditolak (tidak
+                                    hadir)
                                 </span>
                             ) : (
                                 <>
@@ -272,9 +300,9 @@ export default function Notifikasi({
                                 </>
                             )}
                         </p>
-                        {counts && counts.revisi > 0 && (
+                        {counts && counts.ditolak > 0 && (
                             <p className="mt-1 text-xs font-semibold text-[#DC2626] lg:hidden">
-                                {counts.revisi} perlu revisi
+                                {counts.ditolak} ditolak
                             </p>
                         )}
                         {unreadCount > 0 && (
@@ -317,14 +345,6 @@ export default function Notifikasi({
                         <EmptyState
                             title="Belum ada notifikasi"
                             description="Notifikasi dari aktivitas jurnal akan muncul di sini."
-                            action={
-                                <Link
-                                    href="/jurnal/create"
-                                    className="mt-1 rounded-full bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white"
-                                >
-                                    + Buat Jurnal
-                                </Link>
-                            }
                         />
                     ) : filtered.length === 0 ? (
                         <EmptyState

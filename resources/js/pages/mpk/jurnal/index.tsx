@@ -20,17 +20,23 @@ type StatusFilter = 'semua' | ValidationStatus;
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
     { key: 'semua', label: 'Semua' },
+    { key: 'menunggu', label: 'Belum diisi' },
     { key: 'pending', label: 'Menunggu' },
     { key: 'divalidasi', label: 'Divalidasi' },
-    { key: 'revisi', label: 'Revisi' },
+    { key: 'ditolak', label: 'Ditolak' },
+    { key: 'jam_kosong', label: 'Jam kosong' },
+    { key: 'izin', label: 'Izin' },
+    { key: 'terlambat', label: 'Terlambat' },
 ];
 
 export default function ValidasiIndex({
     jurnals,
     filters,
+    assignedKelas,
 }: {
     jurnals: PaginatedJurnal;
     filters: { status?: string; search?: string };
+    assignedKelas?: { id: number; nama_kelas: string } | null;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const activeStatus =
@@ -53,8 +59,19 @@ export default function ValidasiIndex({
             <PageShell
                 framed={false}
                 title="Validasi Jurnal Guru"
-                subtitle={`${jurnals.total} jurnal tercatat`}
+                subtitle={
+                    assignedKelas
+                        ? `Kelas binaan: ${assignedKelas.nama_kelas} • ${jurnals.total} jurnal tercatat`
+                        : `Belum ditempati di kelas • ${jurnals.total} jurnal tercatat`
+                }
             >
+                {!assignedKelas && (
+                    <p className="px-4 pt-3 text-xs font-medium text-[#D97706] lg:px-8">
+                        Akun MPK ini belum ditempati di kelas manapun. Minta
+                        admin menempatkan kamu via Kelola User agar bisa
+                        memvalidasi jurnal.
+                    </p>
+                )}
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();

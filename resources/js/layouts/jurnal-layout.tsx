@@ -11,16 +11,6 @@ function resolveBreadcrumbs(url: string): BreadcrumbItem[] {
         },
     ];
 
-    if (url.startsWith('/jurnal/create')) {
-        return [
-            ...base,
-            {
-                title: 'Tambah Jurnal',
-                href: '/jurnal/create',
-            },
-        ];
-    }
-
     if (url.endsWith('/edit')) {
         return [
             ...base,

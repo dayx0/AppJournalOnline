@@ -11,6 +11,7 @@ use App\Http\Controllers\Mpk\JournalValidationController;
 use App\Http\Controllers\Mpk\NotificationController as MpkNotificationController;
 use App\Http\Controllers\Mpk\RekapController as MpkRekapController;
 use App\Http\Controllers\NotificationController as InboxNotificationController;
+use App\Http\Controllers\Wali\JadwalController as WaliJadwalController;
 use App\Models\ClassRoom;
 use App\Models\Journal;
 use App\Models\Subject;
@@ -44,6 +45,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ->count(),
             ],
             'recentJournals' => $recentJournals,
+            // Tugas hari ini: slot menunggu milik guru ini (tombol "Isi").
+            'slotHariIni' => Journal::where('guru_id', $guruId)
+                ->whereDate('tanggal', today()->toDateString())
+                ->where('status', 'menunggu')
+                ->count(),
+            // Kalau guru ini wali kelas, tampilkan kartu "Kelola Jadwal".
+            'kelasWali' => ClassRoom::where('wali_kelas_id', $guruId)
+                ->orderBy('nama_kelas')->get(['id', 'nama_kelas']),
         ]);
     })->name('dashboard');
 
@@ -63,9 +72,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('notifikasi', [
             'journals' => $journals,
             'counts' => [
+                'menunggu' => Journal::where('guru_id', $guruId)->where('status', 'menunggu')->count(),
                 'pending' => Journal::where('guru_id', $guruId)->where('status', 'pending')->count(),
-                'revisi' => Journal::where('guru_id', $guruId)->where('status', 'revisi')->count(),
                 'divalidasi' => Journal::where('guru_id', $guruId)->where('status', 'divalidasi')->count(),
+                'ditolak' => Journal::where('guru_id', $guruId)->where('status', 'ditolak')->count(),
+                'jam_kosong' => Journal::where('guru_id', $guruId)->where('status', 'jam_kosong')->count(),
             ],
             'unreadKeys' => JournalNotificationService::unreadKeys($guruId),
         ]);
@@ -78,8 +89,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 Route::middleware(['auth', 'isGuruOrAdmin'])->group(function () {
     Route::get('/jurnal', [JournalController::class, 'index'])->name('jurnal.index');
-    Route::get('/jurnal/create', [JournalController::class, 'create'])
-        ->name('jurnal.create');
     Route::get('/jurnal/{journal}/edit', [JournalController::class, 'edit'])
         ->name('jurnal.edit');
     Route::get('/jurnal/{journal}/absensi', [JournalController::class, 'absensi'])
@@ -88,10 +97,10 @@ Route::middleware(['auth', 'isGuruOrAdmin'])->group(function () {
         ->name('jurnal.absensi.update');
     Route::get('/jurnal/{journal}', [JournalController::class, 'show'])
         ->name('jurnal.show');
-    Route::post('/jurnal', [JournalController::class, 'store'])
-        ->name('jurnal.store');
     Route::put('/jurnal/{journal}', [JournalController::class, 'update'])
         ->name('jurnal.update');
+    Route::post('/jurnal/{journal}/izin', [JournalController::class, 'tandaiIzin'])
+        ->name('jurnal.izin');
     Route::delete('/jurnal/{journal}', [JournalController::class, 'destroy'])
         ->name('jurnal.destroy');
 });
@@ -124,7 +133,18 @@ Route::middleware(['auth', 'verified', 'isMpk'])->prefix('mpk')->name('mpk.')->g
     Route::get('/jurnal', [JournalValidationController::class, 'index'])->name('jurnal.index');
     Route::get('/jurnal/{journal}', [JournalValidationController::class, 'show'])->name('jurnal.show');
     Route::post('/jurnal/{journal}/validate', [JournalValidationController::class, 'validate'])->name('jurnal.validate');
-    Route::post('/jurnal/{journal}/revisi', [JournalValidationController::class, 'revisi'])->name('jurnal.revisi');
+    Route::post('/jurnal/{journal}/tolak', [JournalValidationController::class, 'tolak'])->name('jurnal.tolak');
+    Route::post('/jurnal/{journal}/tandai-kosong', [JournalValidationController::class, 'tandaiKosong'])->name('jurnal.tandai-kosong');
+});
+
+Route::middleware(['auth', 'verified'])->prefix('jadwal')->name('jadwal.')->group(function () {
+    Route::get('/', [WaliJadwalController::class, 'index'])->name('index');
+    Route::get('/template', [WaliJadwalController::class, 'template'])->name('template');
+    Route::post('/', [WaliJadwalController::class, 'store'])->name('store');
+    Route::post('/import', [WaliJadwalController::class, 'importPreview'])->name('import.preview');
+    Route::post('/import/confirm', [WaliJadwalController::class, 'importConfirm'])->name('import.confirm');
+    Route::put('/{jadwal}', [WaliJadwalController::class, 'update'])->name('update');
+    Route::delete('/{jadwal}', [WaliJadwalController::class, 'destroy'])->name('destroy');
 });
 
 require __DIR__.'/settings.php';

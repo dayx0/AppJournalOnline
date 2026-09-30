@@ -144,7 +144,12 @@ export default function Absensi({ journal }: Props) {
 
     const validationStatus = journal.status ?? 'pending';
     const isValidated = validationStatus === 'divalidasi';
-    const needRevisi = validationStatus === 'revisi';
+    const isDitolak = validationStatus === 'ditolak';
+    const isFinal =
+        isValidated ||
+        isDitolak ||
+        validationStatus === 'jam_kosong' ||
+        validationStatus === 'izin';
 
     const total = (Object.keys(data) as (keyof AbsensiForm)[]).reduce(
         (sum, key) => sum + toNumber(data[key]),
@@ -207,7 +212,7 @@ export default function Absensi({ journal }: Props) {
                         {/* Status validasi */}
                         <section
                             className={`flex items-center gap-2.5 rounded-xl p-3 ${
-                                needRevisi
+                                isDitolak
                                     ? 'bg-[#FDECEC]'
                                     : isValidated
                                       ? 'bg-[#E8F7EE]'
@@ -215,27 +220,29 @@ export default function Absensi({ journal }: Props) {
                             }`}
                         >
                             <ShieldCheck
-                                className={`h-6 w-6 shrink-0 ${needRevisi ? 'text-[#DC2626]' : isValidated ? 'text-[#16A34A]' : 'text-[#D97706]'}`}
+                                className={`h-6 w-6 shrink-0 ${isDitolak ? 'text-[#DC2626]' : isValidated ? 'text-[#16A34A]' : 'text-[#D97706]'}`}
                             />
                             <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                                 <span className="text-[11px] font-normal whitespace-nowrap text-[#6B7280]">
                                     Status validasi
                                 </span>
                                 <span className="text-xs font-bold text-[#1A1D26]">
-                                    {needRevisi
-                                        ? 'Perlu revisi'
+                                    {isDitolak
+                                        ? 'Ditolak (tidak hadir)'
                                         : isValidated
                                           ? 'Sudah divalidasi'
-                                          : 'Menunggu validasi'}
+                                          : isFinal
+                                            ? 'Sudah final'
+                                            : 'Menunggu validasi'}
                                 </span>
-                                {needRevisi && journal.validation_note && (
+                                {isDitolak && journal.validation_note && (
                                     <span className="text-xs font-normal whitespace-pre-line text-[#991B1B]">
                                         {journal.validation_note}
                                     </span>
                                 )}
                             </div>
                             <CircleCheck
-                                className={`h-[22px] w-[22px] shrink-0 ${needRevisi ? 'text-[#DC2626]' : isValidated ? 'text-[#16A34A]' : 'text-[#D97706]'}`}
+                                className={`h-[22px] w-[22px] shrink-0 ${isDitolak ? 'text-[#DC2626]' : isValidated ? 'text-[#16A34A]' : 'text-[#D97706]'}`}
                             />
                         </section>
                     </div>

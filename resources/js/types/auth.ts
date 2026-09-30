@@ -8,6 +8,8 @@ export type User = {
     two_factor_enabled?: boolean;
     created_at: string;
     updated_at: string;
+    /** Kelas yang ditempati MPK. Null = belum ditempati / bukan MPK. */
+    kelas_id?: number | null;
     [key: string]: unknown;
 };
 

@@ -1,6 +1,6 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ChevronRight, ClipboardList, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import EmptyState from '@/components/empty-state';
 import FilterChips from '@/components/filter-chips';
 import PageShell from '@/components/page-shell';
@@ -11,6 +11,11 @@ import type { Journal, ValidationStatus } from '@/types';
 
 interface Props {
     journals: Journal[];
+    slotHariIni: Journal[];
+    sekarang: string;
+    labelHari: string;
+    tanggalAktif: string;
+    tanggalHariIni: string;
 }
 
 type DateFilter = 'semua' | 'hari-ini' | 'minggu-ini' | 'bulan-ini';
@@ -75,10 +80,95 @@ function matchDateFilter(tanggal: string, filter: DateFilter): boolean {
     );
 }
 
-export default function Index({ journals = [] }: Props) {
+function keMenit(waktu: string): number {
+    const [h, m] = waktu.slice(0, 5).split(':').map(Number);
+
+    return h * 60 + m;
+}
+
+/**
+ * Jam "sekarang" versi server (WIB) yang ikut berdetak di browser.
+ * Basisnya props `sekarang` agar tidak tergantung jam HP user
+ * (yang bisa salah zona/setting). State menit naik tiap 60 detik;
+ * tidak ada Date.now() di badan render (aturan react-hooks/purity).
+ */
+function useJamServer(sekarang: string): string {
+    // Nilai awal dari props; halaman me-remount tiap navigasi Inertia
+    // sehingga tidak perlu sinkronisasi ulang di dalam effect.
+    const [menit, setMenit] = useState(() => keMenit(sekarang));
+
+    useEffect(() => {
+        const id = setInterval(() => {
+            setMenit((v) => (v + 1) % 1440);
+        }, 60000);
+
+        return () => clearInterval(id);
+    }, []);
+
+    const hh = String(Math.floor(menit / 60) % 24).padStart(2, '0');
+    const mm = String(menit % 60).padStart(2, '0');
+
+    return `${hh}:${mm}`;
+}
+
+type PosisiSlot = 'belum' | 'jalan' | 'lewat';
+
+function posisiSlot(slot: Journal, jamSekarang: string): PosisiSlot {
+    const now = keMenit(jamSekarang);
+
+    if (now < keMenit(slot.jam_mulai)) {
+        return 'belum';
+    }
+
+    if (now <= keMenit(slot.jam_selesai)) {
+        return 'jalan';
+    }
+
+    return 'lewat';
+}
+
+const NAMA_HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+/** Geser tanggal Y-m-d sejauh offset hari (untuk slider Kemarin/Besok). */
+function geserTanggal(iso: string, offset: number): string {
+    const [y, m, d] = iso.split('-').map(Number);
+    const t = new Date(y, m - 1, d);
+    t.setDate(t.getDate() + offset);
+    const mm = String(t.getMonth() + 1).padStart(2, '0');
+    const dd = String(t.getDate()).padStart(2, '0');
+
+    return `${t.getFullYear()}-${mm}-${dd}`;
+}
+
+function namaHariPendek(iso: string): string {
+    const [y, m, d] = iso.split('-').map(Number);
+
+    return NAMA_HARI_PENDEK[new Date(y, m - 1, d).getDay()];
+}
+
+export default function Index({
+    journals = [],
+    slotHariIni = [],
+    sekarang,
+    labelHari,
+    tanggalAktif,
+    tanggalHariIni,
+}: Props) {
     const { delete: destroy } = useForm();
     const [query, setQuery] = useState('');
     const [dateFilter, setDateFilter] = useState<DateFilter>('semua');
+    // Jam real-time berbasis waktu server (WIB), bukan jam HP.
+    const jamSekarang = useJamServer(sekarang);
+    // Tombol Isi/Edit hanya aktif di tanggal hari ini (server yang menegakkan).
+    const bisaIsi = tanggalAktif === tanggalHariIni;
+
+    function pindahTanggal(iso: string) {
+        router.get(
+            '/jurnal',
+            { tanggal: iso },
+            { preserveState: true, replace: true },
+        );
+    }
 
     function hapusJurnal(id: number) {
         if (confirm('Yakin ingin menghapus jurnal ini?')) {
@@ -103,8 +193,8 @@ export default function Index({ journals = [] }: Props) {
                 formatTanggal(journal.tanggal),
                 journal.kelas?.nama_kelas ?? '',
                 journal.mataPelajaran?.nama_mapel ?? '',
-                journal.materi,
-                journal.kegiatan,
+                journal.materi ?? '',
+                journal.kegiatan ?? '',
             ]
                 .join(' ')
                 .toLowerCase();
@@ -122,16 +212,186 @@ export default function Index({ journals = [] }: Props) {
                 subtitle={`${journals.length} jurnal tercatat`}
                 backHref="/dashboard"
                 backLabel="Kembali ke Beranda"
-                actions={
-                    <Link
-                        href="/jurnal/create"
-                        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_-6px_rgba(37,99,235,0.6)]"
-                    >
-                        <Plus className="h-4 w-4 text-white" />
-                        Tambah Jurnal
-                    </Link>
-                }
             >
+                {/* Slider tanggal: Kemarin | Hari Ini | Besok.
+                    Melihat boleh, mengisi hanya hari ini (bisaIsi). */}
+                <section className="px-4 pt-3.5 lg:px-8 lg:pt-6">
+                    <div className="grid grid-cols-3 gap-2">
+                        {(
+                            [
+                                {
+                                    label: `Kemarin (${namaHariPendek(geserTanggal(tanggalAktif, -1))})`,
+                                    iso: geserTanggal(tanggalAktif, -1),
+                                },
+                                {
+                                    label: `Hari Ini (${namaHariPendek(tanggalAktif)})`,
+                                    iso: tanggalHariIni,
+                                },
+                                {
+                                    label: `Besok (${namaHariPendek(geserTanggal(tanggalAktif, 1))})`,
+                                    iso: geserTanggal(tanggalAktif, 1),
+                                },
+                            ] as const
+                        ).map((item) => {
+                            const aktif = tanggalAktif === item.iso;
+
+                            return (
+                                <button
+                                    key={item.label}
+                                    type="button"
+                                    onClick={() => pindahTanggal(item.iso)}
+                                    className={`flex items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-semibold whitespace-nowrap ${
+                                        aktif
+                                            ? 'bg-[#2563EB] text-white'
+                                            : 'border border-[#E5E9F2] bg-white text-[#6B7280]'
+                                    }`}
+                                >
+                                    {aktif && item.iso === tanggalHariIni ? (
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                                            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                                        </span>
+                                    ) : null}
+                                    {item.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-2">
+                        <p className="text-xs font-normal text-[#6B7280]">
+                            {labelHari}
+                        </p>
+                        <span
+                            className="rounded-full bg-[#1A1D26] px-3 py-1 text-xs font-bold whitespace-nowrap text-white tabular-nums"
+                            title="Jam server (WIB), bukan jam HP"
+                        >
+                            {jamSekarang} WIB
+                        </span>
+                    </div>
+                    {!bisaIsi && (
+                        <p className="pt-1 text-[11px] font-medium text-[#D97706]">
+                            Mode lihat saja — pengisian hanya bisa dilakukan
+                            pada hari ini.
+                        </p>
+                    )}
+                    {slotHariIni.length === 0 ? (
+                        <p className="pt-1 text-xs font-normal text-[#6B7280]">
+                            Tidak ada jadwal mengajar pada tanggal ini. Slot
+                            dibuat otomatis dari jadwal setiap jam 00:00.
+                        </p>
+                    ) : (
+                        <div className="flex flex-col gap-2 pt-3">
+                            {slotHariIni.map((slot) => {
+                                const posisi = posisiSlot(slot, jamSekarang);
+                                const status = slot.status ?? 'menunggu';
+                                const sedangJalan =
+                                    bisaIsi &&
+                                    posisi === 'jalan' &&
+                                    (status === 'menunggu' ||
+                                        status === 'pending');
+                                const terkunci =
+                                    status === 'divalidasi' ||
+                                    status === 'ditolak' ||
+                                    status === 'terlambat' ||
+                                    status === 'izin';
+
+                                return (
+                                    <article
+                                        key={slot.id}
+                                        className={`flex items-center gap-2 rounded-xl border bg-white p-[14px] ${
+                                            sedangJalan
+                                                ? 'border-[#16A34A] shadow-[0px_2px_12px_0px_#16A34A33]'
+                                                : 'border-[#E5E9F2]'
+                                        }`}
+                                    >
+                                        <span className="flex w-[86px] shrink-0 flex-col rounded-lg bg-[#F6F8FC] px-2 py-1.5 text-center">
+                                            <span className="text-[13px] font-bold whitespace-nowrap text-[#1A1D26]">
+                                                {slot.jam_mulai.slice(0, 5)}
+                                            </span>
+                                            <span className="text-[10px] font-normal text-[#9CA3AF]">
+                                                s/d{' '}
+                                                {slot.jam_selesai.slice(0, 5)}
+                                            </span>
+                                        </span>
+                                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                            <span className="truncate text-xs font-semibold text-[#1A1D26]">
+                                                {slot.mataPelajaran
+                                                    ?.nama_mapel ?? '-'}{' '}
+                                                •{' '}
+                                                {slot.kelas?.nama_kelas ?? '-'}
+                                            </span>
+                                            {sedangJalan ? (
+                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#16A34A]">
+                                                    <span className="relative flex h-2 w-2">
+                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16A34A] opacity-75" />
+                                                        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#16A34A]" />
+                                                    </span>
+                                                    SEDANG BERLANGSUNG
+                                                </span>
+                                            ) : status === 'menunggu' ? (
+                                                <span className="text-[11px] font-semibold text-[#6B7280]">
+                                                    {posisi === 'lewat' &&
+                                                    bisaIsi
+                                                        ? 'Terlewat — segera isi susulan'
+                                                        : 'Belum Diisi'}
+                                                </span>
+                                            ) : status === 'pending' ? (
+                                                <span className="text-[11px] font-semibold text-[#D97706]">
+                                                    🟡 Menunggu Validasi MPK
+                                                </span>
+                                            ) : (
+                                                <StatusBadge
+                                                    status={
+                                                        status as ValidationStatus
+                                                    }
+                                                />
+                                            )}
+                                        </div>
+                                        {/* Varian 1 (belum diisi) & susulan: tombol Isi.
+                                            Varian 2 (menunggu validasi): tombol Edit.
+                                            Varian 3 (final): terkunci, hanya Lihat. */}
+                                        {status === 'menunggu' && bisaIsi && (
+                                            <Link
+                                                href={`/jurnal/${slot.id}/edit`}
+                                                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-xs font-semibold whitespace-nowrap text-white"
+                                            >
+                                                <ClipboardList className="h-4 w-4 text-white" />
+                                                Isi Jurnal
+                                            </Link>
+                                        )}
+                                        {status === 'jam_kosong' && bisaIsi && (
+                                            <Link
+                                                href={`/jurnal/${slot.id}/edit`}
+                                                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-xs font-semibold whitespace-nowrap text-white"
+                                            >
+                                                <ClipboardList className="h-4 w-4 text-white" />
+                                                Isi Susulan
+                                            </Link>
+                                        )}
+                                        {status === 'pending' && bisaIsi && (
+                                            <Link
+                                                href={`/jurnal/${slot.id}/edit`}
+                                                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#E5E9F2] bg-white px-4 py-2 text-xs font-semibold whitespace-nowrap text-[#2563EB]"
+                                            >
+                                                Edit Jurnal
+                                            </Link>
+                                        )}
+                                        {(terkunci || !bisaIsi) && (
+                                            <Link
+                                                href={`/jurnal/${slot.id}`}
+                                                className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-2 text-xs font-semibold whitespace-nowrap text-[#6B7280]"
+                                            >
+                                                Lihat
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Link>
+                                        )}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+
                 <SearchBar
                     value={query}
                     onChange={setQuery}
@@ -149,16 +409,7 @@ export default function Index({ journals = [] }: Props) {
                     {journals.length === 0 ? (
                         <EmptyState
                             title="Belum ada jurnal"
-                            description="Mulai catat kegiatan mengajar hari ini."
-                            action={
-                                <Link
-                                    href="/jurnal/create"
-                                    className="mt-1 inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white"
-                                >
-                                    <Plus className="h-4 w-4 text-white" />
-                                    Buat Jurnal
-                                </Link>
-                            }
+                            description="Slot jurnal dibuat otomatis dari jadwal mengajar setiap hari."
                         />
                     ) : filteredJournals.length === 0 ? (
                         <EmptyState
@@ -212,7 +463,9 @@ export default function Index({ journals = [] }: Props) {
                                                         ?.nama_mapel ?? '-'}
                                                 </span>
                                                 <span className="line-clamp-2 text-xs font-normal text-[#6B7280]">
-                                                    Materi: {journal.materi}
+                                                    Materi:{' '}
+                                                    {journal.materi ??
+                                                        '(belum diisi)'}
                                                 </span>
                                             </div>
                                             <ChevronRight className="h-5 w-5 shrink-0 text-[#6B7280]" />
@@ -235,15 +488,6 @@ export default function Index({ journals = [] }: Props) {
                     )}
                 </section>
             </PageShell>
-
-            {/* FAB Tambah: hanya di mobile, mengambang di atas bottom tab */}
-            <Link
-                href="/jurnal/create"
-                aria-label="Tambah Jurnal"
-                className="fixed right-5 bottom-24 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2563EB] shadow-[0_12px_24px_-6px_rgba(37,99,235,0.6)] lg:hidden"
-            >
-                <Plus className="h-[26px] w-[26px] text-white" />
-            </Link>
         </>
     );
 }

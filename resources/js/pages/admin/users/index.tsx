@@ -19,6 +19,13 @@ type User = {
     name: string;
     email: string;
     role: string;
+    kelas_id: number | null;
+    kelas?: { id: number; nama_kelas: string } | null;
+};
+
+type KelasOption = {
+    id: number;
+    nama_kelas: string;
 };
 
 type PaginatedUsers = {
@@ -67,12 +74,19 @@ function RoleSelect({
     );
 }
 
-export default function UsersIndex({ users }: { users: PaginatedUsers }) {
+export default function UsersIndex({
+    users,
+    kelas,
+}: {
+    users: PaginatedUsers;
+    kelas: KelasOption[];
+}) {
     const { data, setData, post, reset, errors, processing } = useForm({
         name: '',
         email: '',
         password: '',
         role: 'guru' as Role,
+        kelas_id: '' as string,
     });
     const [showForm, setShowForm] = useState(false);
 
@@ -88,6 +102,7 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
         email: '',
         role: 'guru' as Role,
         password: '',
+        kelas_id: '' as string,
     });
 
     function submit(e: React.FormEvent) {
@@ -113,6 +128,7 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
             email: u.email,
             role: (u.role as Role) ?? 'guru',
             password: '',
+            kelas_id: u.kelas_id ? String(u.kelas_id) : '',
         });
     }
 
@@ -213,6 +229,40 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
                                         onChange={(v) => setData('role', v)}
                                     />
                                 </FormField>
+                                {data.role === 'mpk' && (
+                                    <FormField
+                                        label="Kelas binaan (MPK)"
+                                        htmlFor="kelas_id"
+                                        error={errors.kelas_id}
+                                    >
+                                        <div className="relative">
+                                            <select
+                                                id="kelas_id"
+                                                value={data.kelas_id}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'kelas_id',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className={`${INPUT_CLASS} appearance-none pr-9`}
+                                            >
+                                                <option value="">
+                                                    -- Belum ditempati --
+                                                </option>
+                                                {kelas.map((k) => (
+                                                    <option
+                                                        key={k.id}
+                                                        value={String(k.id)}
+                                                    >
+                                                        {k.nama_kelas}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                        </div>
+                                    </FormField>
+                                )}
                                 <button
                                     type="submit"
                                     disabled={processing}
@@ -293,6 +343,40 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
                                         onChange={(v) => setEditData('role', v)}
                                     />
                                 </FormField>
+                                {editData.role === 'mpk' && (
+                                    <FormField
+                                        label="Kelas binaan (MPK)"
+                                        htmlFor="edit-kelas_id"
+                                        error={editErrors.kelas_id}
+                                    >
+                                        <div className="relative">
+                                            <select
+                                                id="edit-kelas_id"
+                                                value={editData.kelas_id}
+                                                onChange={(e) =>
+                                                    setEditData(
+                                                        'kelas_id',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className={`${INPUT_CLASS} appearance-none pr-9`}
+                                            >
+                                                <option value="">
+                                                    -- Belum ditempati --
+                                                </option>
+                                                {kelas.map((k) => (
+                                                    <option
+                                                        key={k.id}
+                                                        value={String(k.id)}
+                                                    >
+                                                        {k.nama_kelas}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                        </div>
+                                    </FormField>
+                                )}
                                 <div className="flex gap-2 lg:col-span-2">
                                     <button
                                         type="submit"
@@ -344,6 +428,11 @@ export default function UsersIndex({ users }: { users: PaginatedUsers }) {
                                         className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold whitespace-nowrap capitalize ${ROLE_STYLE[u.role] ?? 'bg-[#F3F4F6] text-[#6B7280]'}`}
                                     >
                                         {u.role}
+                                        {u.role === 'mpk' && u.kelas
+                                            ? ` • ${u.kelas.nama_kelas}`
+                                            : u.role === 'mpk'
+                                              ? ' • tanpa kelas'
+                                              : ''}
                                     </span>
                                     <span className="flex shrink-0 items-center gap-1">
                                         <button
