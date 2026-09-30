@@ -34,4 +34,9 @@ class ClassRoom extends Model
     {
         return $this->hasMany(User::class, 'kelas_id')->where('role', 'mpk');
     }
+
+    public function siswa(): HasMany
+    {
+        return $this->hasMany(Siswa::class, 'kelas_id');
+    }
 }

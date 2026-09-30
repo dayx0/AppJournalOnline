@@ -21,6 +21,11 @@ type User = {
     role: string;
     kelas_id: number | null;
     kelas?: { id: number; nama_kelas: string } | null;
+    siswa?: {
+        id: number;
+        kelas_id: number | null;
+        nis: string | null;
+    } | null;
 };
 
 type KelasOption = {
@@ -87,6 +92,7 @@ export default function UsersIndex({
         password: '',
         role: 'guru' as Role,
         kelas_id: '' as string,
+        nis: '',
     });
     const [showForm, setShowForm] = useState(false);
 
@@ -103,6 +109,7 @@ export default function UsersIndex({
         role: 'guru' as Role,
         password: '',
         kelas_id: '' as string,
+        nis: '',
     });
 
     function submit(e: React.FormEvent) {
@@ -129,6 +136,7 @@ export default function UsersIndex({
             role: (u.role as Role) ?? 'guru',
             password: '',
             kelas_id: u.kelas_id ? String(u.kelas_id) : '',
+            nis: u.siswa?.nis ?? '',
         });
     }
 
@@ -226,7 +234,13 @@ export default function UsersIndex({
                                     <RoleSelect
                                         id="role"
                                         value={data.role}
-                                        onChange={(v) => setData('role', v)}
+                                        onChange={(v) => {
+                                            setData('role', v);
+
+                                            if (v !== 'mpk') {
+                                                setData('kelas_id', '');
+                                            }
+                                        }}
                                     />
                                 </FormField>
                                 {data.role === 'mpk' && (
@@ -261,6 +275,23 @@ export default function UsersIndex({
                                             </select>
                                             <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
                                         </div>
+                                    </FormField>
+                                )}
+                                {data.role === 'mpk' && (
+                                    <FormField
+                                        label="NIS"
+                                        htmlFor="nis"
+                                        error={errors.nis}
+                                    >
+                                        <input
+                                            id="nis"
+                                            value={data.nis}
+                                            onChange={(e) =>
+                                                setData('nis', e.target.value)
+                                            }
+                                            placeholder="Nomor Induk Siswa (opsional)"
+                                            className={INPUT_CLASS}
+                                        />
                                     </FormField>
                                 )}
                                 <button
@@ -340,7 +371,13 @@ export default function UsersIndex({
                                     <RoleSelect
                                         id="edit-role"
                                         value={editData.role}
-                                        onChange={(v) => setEditData('role', v)}
+                                        onChange={(v) => {
+                                            setEditData('role', v);
+
+                                            if (v !== 'mpk') {
+                                                setEditData('kelas_id', '');
+                                            }
+                                        }}
                                     />
                                 </FormField>
                                 {editData.role === 'mpk' && (
@@ -375,6 +412,26 @@ export default function UsersIndex({
                                             </select>
                                             <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
                                         </div>
+                                    </FormField>
+                                )}
+                                {editData.role === 'mpk' && (
+                                    <FormField
+                                        label="NIS"
+                                        htmlFor="edit-nis"
+                                        error={editErrors.nis}
+                                    >
+                                        <input
+                                            id="edit-nis"
+                                            value={editData.nis}
+                                            onChange={(e) =>
+                                                setEditData(
+                                                    'nis',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="Nomor Induk Siswa (opsional)"
+                                            className={INPUT_CLASS}
+                                        />
                                     </FormField>
                                 )}
                                 <div className="flex gap-2 lg:col-span-2">
@@ -433,6 +490,9 @@ export default function UsersIndex({
                                             : u.role === 'mpk'
                                               ? ' • tanpa kelas'
                                               : ''}
+                                        {u.role === 'mpk' && u.siswa?.nis
+                                            ? ` • NIS ${u.siswa.nis}`
+                                            : ''}
                                     </span>
                                     <span className="flex shrink-0 items-center gap-1">
                                         <button

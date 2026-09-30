@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
+ * @property string|null $role
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -91,6 +93,16 @@ class User extends Authenticatable implements PasskeyUser
         return $this->isMpk()
             && $this->kelas_id !== null
             && $journal->kelas_id === (int) $this->kelas_id;
+    }
+
+    /**
+     * Profil siswa milik akun MPK (tabel siswa: NIS + cermin kelas).
+     * Penempatan resmi tetap users.kelas_id (lihat canValidateJournal);
+     * relasi ini untuk data profil + sinkronisasi admin.
+     */
+    public function siswa(): HasOne
+    {
+        return $this->hasOne(Siswa::class, 'user_id');
     }
 
     protected function casts(): array

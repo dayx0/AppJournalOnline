@@ -24,9 +24,11 @@ type Stats = {
 export default function MpkDashboard({
     stats,
     butuhPerhatian,
+    assignedKelas = null,
 }: {
     stats: Stats;
     butuhPerhatian: Journal[];
+    assignedKelas?: { id: number; nama_kelas: string } | null;
 }) {
     return (
         <>
@@ -34,7 +36,11 @@ export default function MpkDashboard({
             <PageShell
                 framed={false}
                 title="Dashboard MPK"
-                subtitle={`${stats.pending} jurnal menunggu validasi`}
+                subtitle={
+                    assignedKelas
+                        ? `Kelas ${assignedKelas.nama_kelas} • ${stats.pending} jurnal menunggu validasi`
+                        : 'Belum di-assign ke kelas mana pun — hubungi admin'
+                }
             >
                 <section className="grid grid-cols-2 gap-3 px-5 pt-2.5 pb-1 lg:grid-cols-4 lg:gap-4 lg:px-8 lg:pt-5">
                     <StatCard

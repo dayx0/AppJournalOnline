@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ClassRoom;
 use App\Models\Journal;
+use App\Models\Siswa;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +15,14 @@ class RekapHistoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function makeMpk(ClassRoom $kelas, ?string $nis = null): User
+    {
+        $mpk = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelas->id]);
+        Siswa::create(['user_id' => $mpk->id, 'kelas_id' => $kelas->id, 'nis' => $nis]);
+
+        return $mpk;
+    }
+
     private function master(): array
     {
         $kelas = ClassRoom::create(['nama_kelas' => 'XII IPA 1', 'jurusan' => 'IPA', 'tingkat' => 'XII']);
@@ -22,9 +31,10 @@ class RekapHistoryTest extends TestCase
         return [$kelas, $mapel];
     }
 
-    private function journal(User $guru, string $tanggal = '2026-09-10', string $status = 'pending'): Journal
+    private function journal(User $guru, string $tanggal = '2026-09-10', string $status = 'pending', ?ClassRoom $kelas = null, ?Subject $mapel = null): Journal
     {
-        [$kelas, $mapel] = $this->master();
+        $kelas ??= ClassRoom::create(['nama_kelas' => 'XII IPA '.fake()->unique()->numberBetween(1, 99), 'jurusan' => 'IPA', 'tingkat' => 'XII']);
+        $mapel ??= Subject::create(['nama_mapel' => 'Matematika '.fake()->unique()->word(), 'kode_mapel' => 'MTK'.fake()->unique()->numberBetween(100, 999)]);
 
         return Journal::create([
             'guru_id' => $guru->id,
@@ -42,8 +52,8 @@ class RekapHistoryTest extends TestCase
     public function test_riwayat_tercatat_saat_diisi_divalidasi_dan_final()
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $mpk = User::factory()->create(['role' => 'mpk']);
         [$kelas, $mapel] = $this->master();
+        $mpk = $this->makeMpk($kelas);
 
         // Slot menunggu (seolah dari scheduler), diisi guru via HTTP
         // agar trigger controller ikut jalan: menunggu -> pending.
@@ -105,7 +115,7 @@ class RekapHistoryTest extends TestCase
         $guru = User::factory()->create(['role' => 'guru']);
         [$kelas, $mapel] = $this->master();
         // MPK ditempati di kelas yang sama dengan kedua jurnal uji.
-        $mpk = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelas->id]);
+        $mpk = $this->makeMpk($kelas);
 
         $makeJournal = fn (string $tanggal, string $status) => Journal::create([
             'guru_id' => $guru->id,
@@ -152,5 +162,59 @@ class RekapHistoryTest extends TestCase
 
         $this->actingAs($guru)->get(route('mpk.rekap.index'))->assertForbidden();
         $this->actingAs($guru)->get(route('mpk.rekap.export'))->assertForbidden();
+    }
+
+    public function test_mpk_hanya_melihat_kelasnya_sendiri()
+    {
+        $guru = User::factory()->create(['role' => 'guru']);
+        [$kelasA, $mapel] = $this->master();
+        $kelasB = ClassRoom::create(['nama_kelas' => 'XII IPS 1', 'jurusan' => 'IPS', 'tingkat' => 'XII']);
+        $mpkA = $this->makeMpk($kelasA);
+
+        $jurnalA = $this->journal($guru, now()->toDateString(), 'pending', $kelasA, $mapel);
+        $jurnalB = $this->journal($guru, now()->toDateString(), 'pending', $kelasB, $mapel);
+
+        // Index hanya berisi jurnal kelas sendiri (default tanggal hari ini)
+        $this->actingAs($mpkA)->get(route('mpk.jurnal.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('mpk/jurnal/index')
+                ->has('jurnals.data', 1)
+                ->where('jurnals.data.0.id', $jurnalA->id));
+
+        // Detail & validasi kelas lain ditolak (revisi sudah dihapus,
+        // diganti tolak pada alur validasi baru)
+        $this->actingAs($mpkA)->get(route('mpk.jurnal.show', $jurnalB))->assertForbidden();
+        $this->actingAs($mpkA)->post(route('mpk.jurnal.validate', $jurnalB))->assertForbidden();
+        $this->actingAs($mpkA)->post(route('mpk.jurnal.tolak', $jurnalB), ['validation_note' => 'Salah kelas'])->assertForbidden();
+
+        // Dashboard & rekap juga hanya kelas sendiri
+        $this->actingAs($mpkA)->get(route('mpk.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('stats.total', 1)
+                ->where('stats.pending', 1));
+
+        $this->actingAs($mpkA)->get(route('mpk.rekap.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('summary.total', 1)
+                ->has('jurnals.data', 1));
+    }
+
+    public function test_mpk_tanpa_kelas_tidak_melihat_apa_pun()
+    {
+        $guru = User::factory()->create(['role' => 'guru']);
+        $mpk = User::factory()->create(['role' => 'mpk']);
+        $journal = $this->journal($guru);
+
+        $this->actingAs($mpk)->get(route('mpk.jurnal.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('jurnals.data', 0));
+
+        $this->actingAs($mpk)->get(route('mpk.jurnal.show', $journal))->assertForbidden();
+        $this->actingAs($mpk)->get(route('mpk.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('stats.total', 0));
     }
 }
