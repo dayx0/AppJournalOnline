@@ -24,7 +24,14 @@ class JadwalPolicy
      */
     public function view(User $user, Jadwal $jadwal): bool
     {
-        return $user->isWaliKelasOf($jadwal->kelas);
+        return $this->isWaliKelas($user, $jadwal);
+    }
+
+    private function isWaliKelas(User $user, Jadwal $jadwal): bool
+    {
+        $kelas = $jadwal->kelas;
+
+        return $kelas !== null && $user->isWaliKelasOf($kelas);
     }
 
     /**
@@ -40,7 +47,7 @@ class JadwalPolicy
      */
     public function update(User $user, Jadwal $jadwal): bool
     {
-        return $user->isWaliKelasOf($jadwal->kelas);
+        return $this->isWaliKelas($user, $jadwal);
     }
 
     /**
@@ -48,7 +55,7 @@ class JadwalPolicy
      */
     public function delete(User $user, Jadwal $jadwal): bool
     {
-        return $user->isWaliKelasOf($jadwal->kelas);
+        return $this->isWaliKelas($user, $jadwal);
     }
 
     /**

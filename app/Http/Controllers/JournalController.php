@@ -7,17 +7,29 @@ use App\Models\JournalHistory;
 use App\Services\JournalHistoryService;
 use App\Services\JournalNotificationService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class JournalController extends Controller
 {
+    private function userId(): int
+    {
+        $id = auth()->id();
+        abort_if($id === null, 401);
+
+        return (int) $id;
+    }
+
     private function ensureOwns(Journal $journal): void
     {
-        if (auth()->user()->isAdmin()) {
+        $user = auth()->user();
+
+        if ($user !== null && $user->isAdmin()) {
             return;
         } // admin boleh semua, hapus baris ini kalau admin tidak boleh
-        abort_if($journal->guru_id !== auth()->id(), 403);
+        abort_if($journal->guru_id !== $this->userId(), 403);
     }
 
     /**
@@ -27,7 +39,7 @@ class JournalController extends Controller
      */
     private function ensureHariIni(Journal $journal): void
     {
-        if (auth()->user()->isAdmin()) {
+        if (auth()->user()?->isAdmin()) {
             return;
         }
         abort_unless(
@@ -48,11 +60,11 @@ class JournalController extends Controller
         );
     }
 
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $request->validate(['tanggal' => 'nullable|date']);
 
-        $guruId = auth()->id();
+        $guruId = $this->userId();
         $sekarang = now();
 
         // Jendela geser H-1 s.d H+1: di luar itu kembali ke hari ini.
@@ -77,13 +89,20 @@ class JournalController extends Controller
             ->latest()
             ->get();
 
+        $tanggalLabel = $sekarang->copy()->setDate(
+            (int) substr($tanggal, 0, 4),
+            (int) substr($tanggal, 5, 2),
+            (int) substr($tanggal, 8, 2),
+        );
+        $tanggalLabel->locale('id');
+
         return Inertia::render('jurnal/index', [
             'journals' => $journals,
             'slotHariIni' => $slotHariIni,
             // Waktu server (WIB, bukan jam HP) agar penanda "sedang
             // berlangsung" konsisten untuk semua user.
             'sekarang' => $sekarang->format('H:i'),
-            'labelHari' => Carbon::parse($tanggal)->locale('id')->isoFormat('dddd, D MMMM YYYY'),
+            'labelHari' => $tanggalLabel->isoFormat('dddd, D MMMM YYYY'),
             'tanggalAktif' => $tanggal,
             // Acuan "hari ini" versi server: tombol Isi hanya aktif bila
             // tanggalAktif sama dengan ini (lihat guard ensureHariIni).
@@ -91,7 +110,7 @@ class JournalController extends Controller
         ]);
     }
 
-    public function edit(Journal $journal)
+    public function edit(Journal $journal): Response
     {
         $this->ensureOwns($journal);
 
@@ -102,12 +121,12 @@ class JournalController extends Controller
         ]);
     }
 
-    public function show(Journal $journal)
+    public function show(Journal $journal): Response
     {
         $this->ensureOwns($journal);
         $journal->load(['guru', 'kelas', 'mataPelajaran', 'absensi', 'validator']);
         // Membuka detail = sudah melihat isi notifikasi jurnal ini
-        JournalNotificationService::markJournalRead(auth()->id(), $journal->id);
+        JournalNotificationService::markJournalRead($this->userId(), $journal->id);
 
         return Inertia::render('jurnal/show', [
             'journal' => $journal,
@@ -118,7 +137,7 @@ class JournalController extends Controller
         ]);
     }
 
-    public function update(Request $request, Journal $journal)
+    public function update(Request $request, Journal $journal): RedirectResponse
     {
         $this->ensureOwns($journal); // pola lama: admin bypass, guru harus pemilik
         $this->ensureTidakTerkunci($journal);
@@ -155,7 +174,7 @@ class JournalController extends Controller
             ]
         );
 
-        JournalHistoryService::log($journal->fresh(), auth()->id(),
+        JournalHistoryService::log($journal->fresh(), $this->userId(),
             $ke === Journal::STATUS_TERLAMBAT ? JournalHistory::AKSI_TERLAMBAT : JournalHistory::AKSI_DIISI,
             $dari, $ke);
         // Susulan pun perlu diketahui MPK kelasnya:
@@ -164,7 +183,7 @@ class JournalController extends Controller
         return redirect()->route('jurnal.index');
     }
 
-    public function destroy(Journal $journal)
+    public function destroy(Journal $journal): RedirectResponse
     {
         $this->ensureOwns($journal);
         $this->ensureTidakTerkunci($journal);
@@ -177,7 +196,7 @@ class JournalController extends Controller
             ->route('jurnal.index');
     }
 
-    public function absensi(Journal $journal)
+    public function absensi(Journal $journal): Response
     {
         $this->ensureOwns($journal);
         $journal->load(['kelas', 'mataPelajaran', 'absensi']);
@@ -187,7 +206,7 @@ class JournalController extends Controller
         ]);
     }
 
-    public function updateAbsensi(Request $request, Journal $journal)
+    public function updateAbsensi(Request $request, Journal $journal): RedirectResponse
     {
         $this->ensureOwns($journal);
         $this->ensureTidakTerkunci($journal);
@@ -213,7 +232,7 @@ class JournalController extends Controller
             ->route('jurnal.show', $journal);
     }
 
-    public function tandaiIzin(Request $request, Journal $journal)
+    public function tandaiIzin(Request $request, Journal $journal): RedirectResponse
     {
         $this->ensureOwns($journal);
         $this->ensureTidakTerkunci($journal);
@@ -222,8 +241,8 @@ class JournalController extends Controller
         $validated = $request->validate(['catatan' => 'required|string|max:1000']);
         $journal->update(['status' => Journal::STATUS_IZIN,
             'validation_note' => $validated['catatan'],
-            'validated_by' => auth()->id(), 'validated_at' => now()]);
-        JournalHistoryService::log($journal->fresh(), auth()->id(),
+            'validated_by' => $this->userId(), 'validated_at' => now()]);
+        JournalHistoryService::log($journal->fresh(), $this->userId(),
             JournalHistory::AKSI_IZIN, Journal::STATUS_MENUNGGU, Journal::STATUS_IZIN, $validated['catatan']);
 
         return back();

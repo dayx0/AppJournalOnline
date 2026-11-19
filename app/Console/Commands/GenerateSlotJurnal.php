@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Jadwal;
 use App\Models\Journal;
 use App\Models\TahunAjaran;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class GenerateSlotJurnal extends Command
@@ -59,7 +58,13 @@ class GenerateSlotJurnal extends Command
     {
         // isoFormat('dddd') dengan locale id menghasilkan "senin".."minggu"
         // yang persis cocok dengan enum kolom hari. Minggu libur.
-        $hari = strtolower(Carbon::parse($tanggal)->locale('id')->isoFormat('dddd'));
+        $tanggalObj = today()->copy()->setDate(
+            (int) substr($tanggal, 0, 4),
+            (int) substr($tanggal, 5, 2),
+            (int) substr($tanggal, 8, 2),
+        );
+        $tanggalObj->locale('id');
+        $hari = strtolower($tanggalObj->isoFormat('dddd'));
 
         if ($hari === 'minggu') {
             if (! $quiet) {

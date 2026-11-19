@@ -21,7 +21,7 @@ class AdminSeeder extends Seeder
                 'role' => 'admin',
                 'email_verified_at' => now(),
             ]
-        );    
+        );
 
     }
 }

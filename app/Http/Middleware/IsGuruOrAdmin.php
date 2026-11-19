@@ -18,6 +18,7 @@ class IsGuruOrAdmin
         if (! $request->user()?->isGuru() && ! $request->user()?->isAdmin()) {
             abort(403);
         }
+
         return $next($request);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Journal;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\TahunAjaranService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,7 +25,7 @@ class TahunAjaranController extends Controller
     }
 
     /** Buka tahun baru + kunci total tahun lama. */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'nama' => ['required', 'string', 'max:9', 'regex:/^\d{4}\/\d{4}$/'],
@@ -54,6 +55,7 @@ class TahunAjaranController extends Controller
         ]);
     }
 
+    /** @return array<string, mixed> */
     private function data(): array
     {
         return [

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassRoom;
 use App\Models\Jurusan;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -57,7 +58,7 @@ class ClassRoomController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'nama_kelas' => 'required|string|max:50|unique:kelas,nama_kelas',
@@ -72,7 +73,7 @@ class ClassRoomController extends Controller
         return back()->with('success', 'Kelas berhasil ditambah');
     }
 
-    public function update(Request $request, ClassRoom $kls)
+    public function update(Request $request, ClassRoom $kls): RedirectResponse
     {
         $validated = $request->validate([
             'nama_kelas' => ['required', 'string', 'max:50', Rule::unique('kelas', 'nama_kelas')->ignore($kls->id)],
@@ -103,7 +104,7 @@ class ClassRoomController extends Controller
         }
     }
 
-    public function destroy(ClassRoom $kls)
+    public function destroy(ClassRoom $kls): RedirectResponse
     {
         if ($kls->jurnal()->exists()) {
             return back()->with('error', 'Tidak bisa hapus, kelas masih dipakai jurnal');

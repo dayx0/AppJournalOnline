@@ -16,6 +16,9 @@ class JadwalRowsImport implements ToArray
 
     public function array(array $array): void
     {
-        $this->rows = $array;
+        $this->rows = array_values(array_map(
+            static fn (mixed $row): array => is_array($row) ? array_values($row) : [$row],
+            $array,
+        ));
     }
 }

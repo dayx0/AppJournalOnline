@@ -5,6 +5,15 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property string $nama
+ * @property string $semester_aktif
+ * @property bool $is_aktif
+ * @property Carbon|null $locked_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class TahunAjaran extends Model
 {
     protected $table = 'tahun_ajarans';

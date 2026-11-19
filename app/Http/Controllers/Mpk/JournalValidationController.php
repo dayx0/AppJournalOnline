@@ -7,12 +7,21 @@ use App\Models\Journal;
 use App\Services\JournalHistoryService;
 use App\Services\JournalNotificationService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class JournalValidationController extends Controller
 {
+    private function userId(Request $request): int
+    {
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        return (int) $user->id;
+    }
+
     /**
      * Ambil kelas yang ditempati MPK yang sedang login.
      * Null = MPK belum ditempati -> tidak boleh lihat apapun.
@@ -94,7 +103,7 @@ class JournalValidationController extends Controller
 
         $journal->load(['guru', 'kelas', 'mataPelajaran', 'absensi', 'validator']);
         // MPK membuka detail = antrean jurnal ini sudah dilihat
-        JournalNotificationService::markJournalRead(auth()->id(), $journal->id);
+        JournalNotificationService::markJournalRead($this->userId($request), $journal->id);
 
         return Inertia::render('mpk/jurnal/show', [
             'journal' => $journal,
@@ -102,7 +111,7 @@ class JournalValidationController extends Controller
         ]);
     }
 
-    public function validate(Request $request, Journal $journal)
+    public function validate(Request $request, Journal $journal): RedirectResponse
     {
         $this->ensureMpkOwns($request, $journal);
         $this->ensureTidakTerkunci($journal);
@@ -117,20 +126,20 @@ class JournalValidationController extends Controller
 
         $journal->update([
             'status' => 'divalidasi',
-            'validated_by' => $request->user()->id,
+            'validated_by' => $this->userId($request),
             'validated_at' => now(),
             'validation_note' => $validated['validation_note'] ?? null,
         ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Jurnal divalidasi.']);
         $fresh = $journal->fresh();
-        JournalHistoryService::logKeputusan($fresh, $request->user()->id, $dari);
+        JournalHistoryService::logKeputusan($fresh, $this->userId($request), $dari);
         JournalNotificationService::notifyGuruDecision($fresh);
 
         return back();
     }
 
-    public function tolak(Request $request, Journal $journal)
+    public function tolak(Request $request, Journal $journal): RedirectResponse
     {
         $this->ensureMpkOwns($request, $journal); // scope kelas kemarin, jangan diubah
         $this->ensureTidakTerkunci($journal);
@@ -138,16 +147,16 @@ class JournalValidationController extends Controller
         // Catatan WAJIB: vonis ketidakhadiran harus beralasan, beda dengan validasi.
         $validated = $request->validate(['validation_note' => 'required|string|max:1000']);
         $dari = $journal->status;
-        $journal->update(['status' => Journal::STATUS_DITOLAK, 'validated_by' => $request->user()->id,
+        $journal->update(['status' => Journal::STATUS_DITOLAK, 'validated_by' => $this->userId($request),
             'validated_at' => now(), 'validation_note' => $validated['validation_note']]);
         $fresh = $journal->fresh();
-        JournalHistoryService::logKeputusan($fresh, $request->user()->id, $dari);
+        JournalHistoryService::logKeputusan($fresh, $this->userId($request), $dari);
         JournalNotificationService::notifyGuruDecision($fresh);
 
         return back();
     }
 
-    public function tandaiKosong(Request $request, Journal $journal)
+    public function tandaiKosong(Request $request, Journal $journal): RedirectResponse
     {
         $this->ensureMpkOwns($request, $journal);
         $this->ensureTidakTerkunci($journal);
@@ -159,14 +168,14 @@ class JournalValidationController extends Controller
 
         $journal->update([
             'status' => Journal::STATUS_JAM_KOSONG,
-            'validated_by' => $request->user()->id,
+            'validated_by' => $this->userId($request),
             'validated_at' => now(),
             'validation_note' => $validated['validation_note'] ?? null,
         ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Slot ditandai jam kosong.']);
         $fresh = $journal->fresh();
-        JournalHistoryService::logKeputusan($fresh, $request->user()->id, $dari);
+        JournalHistoryService::logKeputusan($fresh, $this->userId($request), $dari);
         // Guru wajib tahu slotnya dinyatakan kosong (kalau tidak, ia tak akan
         // pernah mengisi susulan). notifyGuruDecision memetakan jam_kosong.
         JournalNotificationService::notifyGuruDecision($fresh);

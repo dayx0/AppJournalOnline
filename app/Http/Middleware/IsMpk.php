@@ -18,6 +18,7 @@ class IsMpk
         if (! $request->user()?->isMpk()) {
             abort(403);
         }
+
         return $next($request);
     }
 }
