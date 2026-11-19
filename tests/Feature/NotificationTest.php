@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ClassRoom;
 use App\Models\Journal;
+use App\Models\Jurusan;
 use App\Models\Siswa;
 use App\Models\Subject;
 use App\Models\User;
@@ -18,7 +19,7 @@ class NotificationTest extends TestCase
 
     private function makeMaster(): array
     {
-        $kelas = ClassRoom::create(['nama_kelas' => 'XII IPA 1', 'jurusan' => 'IPA', 'tingkat' => 'XII']);
+        $kelas = ClassRoom::create(['nama_kelas' => 'XII IPA 1', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'IPA'], ['nama' => 'IPA', 'kelompok' => 'IPA'])->id, 'tingkat' => 12]);
         $mapel = Subject::create(['nama_mapel' => 'Matematika', 'kode_mapel' => 'MTK']);
 
         return [$kelas, $mapel];
@@ -149,7 +150,7 @@ class NotificationTest extends TestCase
     {
         $guru = User::factory()->create(['role' => 'guru']);
         $journal = $this->makeJournal($guru);
-        $kelasLain = ClassRoom::create(['nama_kelas' => 'XII IPS 1', 'jurusan' => 'IPS', 'tingkat' => 'XII']);
+        $kelasLain = ClassRoom::create(['nama_kelas' => 'XII IPS 1', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'IPS'], ['nama' => 'IPS', 'kelompok' => 'IPS'])->id, 'tingkat' => 12]);
         $mpkLain = $this->makeMpk($kelasLain);
         $mpkTanpaKelas = User::factory()->create(['role' => 'mpk']);
 

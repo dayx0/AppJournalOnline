@@ -58,11 +58,17 @@ export function AppSidebar() {
                   },
               ]
             : [
-                  {
-                      title: 'Dashboard',
-                      href: '/dashboard',
-                      icon: LayoutGrid,
-                  },
+                  // Admin dialihkan ke /admin/dashboard oleh server, jadi
+                  // item generik ini disembunyikan agar tidak ada dua dasbor.
+                  ...(!isAdmin
+                      ? [
+                            {
+                                title: 'Dashboard',
+                                href: '/dashboard',
+                                icon: LayoutGrid,
+                            },
+                        ]
+                      : []),
                   {
                       title: 'Jurnal',
                       href: '/jurnal',
@@ -104,6 +110,11 @@ export function AppSidebar() {
                       title: 'Monitor Jurnal',
                       href: '/admin/jurnal',
                       icon: BookOpen,
+                  },
+                  {
+                      title: 'Tahun Ajaran',
+                      href: '/admin/tahun-ajaran',
+                      icon: CalendarDays,
                   },
               ]
             : []),

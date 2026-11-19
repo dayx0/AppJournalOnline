@@ -30,6 +30,15 @@ class JournalValidationController extends Controller
         abort_unless($request->user()->canValidateJournal($journal), 403);
     }
 
+    /** Arsip tahun ajaran lama tak bisa divalidasi/ditolak/ditandai lagi. */
+    private function ensureTidakTerkunci(Journal $journal): void
+    {
+        abort_if(
+            $journal->isTerkunci(),
+            422, 'Arsip tahun ajaran '.$journal->tahun_ajaran.' sudah dikunci (read-only).'
+        );
+    }
+
     public function index(Request $request): Response
     {
         $request->validate(['tanggal' => 'nullable|date']);
@@ -96,6 +105,7 @@ class JournalValidationController extends Controller
     public function validate(Request $request, Journal $journal)
     {
         $this->ensureMpkOwns($request, $journal);
+        $this->ensureTidakTerkunci($journal);
         // Hanya jurnal yang sudah diisi guru yang bisa divalidasi.
         // Slot menunggu/izin/kosong tidak punya isi untuk dinilai.
         abort_unless($journal->status === Journal::STATUS_PENDING, 422, 'Hanya jurnal terisi yang bisa divalidasi.');
@@ -123,6 +133,7 @@ class JournalValidationController extends Controller
     public function tolak(Request $request, Journal $journal)
     {
         $this->ensureMpkOwns($request, $journal); // scope kelas kemarin, jangan diubah
+        $this->ensureTidakTerkunci($journal);
         abort_unless($journal->status === Journal::STATUS_PENDING, 422, 'Hanya jurnal terisi.');
         // Catatan WAJIB: vonis ketidakhadiran harus beralasan, beda dengan validasi.
         $validated = $request->validate(['validation_note' => 'required|string|max:1000']);
@@ -139,6 +150,7 @@ class JournalValidationController extends Controller
     public function tandaiKosong(Request $request, Journal $journal)
     {
         $this->ensureMpkOwns($request, $journal);
+        $this->ensureTidakTerkunci($journal);
         // Guard berlapis dengan pesan spesifik: user harus paham KENAPA ditolak.
         abort_if($journal->status === Journal::STATUS_IZIN, 422, 'Slot dispensasi resmi.');
         abort_unless($journal->status === Journal::STATUS_MENUNGGU, 422, 'Hanya slot belum diisi.');

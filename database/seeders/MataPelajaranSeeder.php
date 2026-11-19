@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Jadwal;
+use App\Models\Journal;
 use App\Models\Subject;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +11,8 @@ class MataPelajaranSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * BIN = Bahasa Indonesia, BING = Bahasa Inggris (jangan tertukar).
      */
     public function run(): void
     {
@@ -25,11 +29,20 @@ class MataPelajaranSeeder extends Seeder
             ['nama_mapel' => 'Mapel Pilihan RPL', 'kode_mapel' => 'MP RPL'],
             ['nama_mapel' => 'Pendidikan Agama dan Budi Pekerti', 'kode_mapel' => 'PABP'],
             ['nama_mapel' => 'Bimbingan Konseling', 'kode_mapel' => 'BK'],
-            ['nama_mapel' => 'Bahasa Indonesia', 'kode_mapel' => 'BI'],
         ];
 
         foreach ($data as $item) {
             Subject::firstOrCreate($item);
+        }
+
+        // Bersihkan duplikat lama: 'BI' juga bernama Bahasa Indonesia.
+        // Pindahkan referensi ke BIN lalu hapus baris BI agar kode tunggal.
+        $bin = Subject::where('kode_mapel', 'BIN')->first();
+        $bi = Subject::where('kode_mapel', 'BI')->first();
+        if ($bin && $bi && $bin->id !== $bi->id) {
+            Jadwal::where('mapel_id', $bi->id)->update(['mapel_id' => $bin->id]);
+            Journal::where('mapel_id', $bi->id)->update(['mapel_id' => $bin->id]);
+            $bi->delete();
         }
     }
 }

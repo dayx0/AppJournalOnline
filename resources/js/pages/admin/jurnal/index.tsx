@@ -4,7 +4,6 @@ import EmptyState from '@/components/empty-state';
 import PageShell from '@/components/page-shell';
 import SimplePager from '@/components/simple-pager';
 import StatusBadge from '@/components/status-badge';
-import AppLayout from '@/layouts/app-layout';
 import { formatTanggal } from '@/lib/format';
 import type { BreadcrumbItem, Journal, ValidationStatus } from '@/types';
 
@@ -24,7 +23,7 @@ export default function JurnalMonitor({
     jurnals: PaginatedJurnal;
 }) {
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head title="Monitor Jurnal" />
             <PageShell
                 title="Monitor Jurnal"
@@ -77,6 +76,10 @@ export default function JurnalMonitor({
                     <SimplePager links={jurnals.links} />
                 </div>
             </PageShell>
-        </AppLayout>
+        </>
     );
 }
+
+JurnalMonitor.layout = {
+    breadcrumbs,
+};

@@ -145,10 +145,10 @@ export default function Show({
     }, [students, studentQuery, statusFilter]);
 
     const tabButtonClass = (isActive: boolean) =>
-        `flex-1 rounded-lg p-2 text-[13px] whitespace-nowrap ${
+        `flex-1 rounded-xl p-2.5 text-[13px] whitespace-nowrap ${
             isActive
                 ? 'bg-[#2563EB] font-semibold text-white'
-                : 'bg-white font-medium text-[#6B7280]'
+                : 'border border-[#E5E9F2] bg-white font-medium text-[#6B7280]'
         }`;
 
     return (
@@ -333,10 +333,9 @@ export default function Show({
                                             Daftar siswa belum tersedia
                                         </p>
                                         <p className="text-xs font-normal text-[#6B7280]">
-                                            Belum ada tabel siswa di database,
-                                            sehingga kehadiran per nama belum
-                                            bisa ditampilkan. Rekap agregat di
-                                            atas diambil dari data jurnal ini.
+                                            Kehadiran per nama siswa belum
+                                            tersedia. Rekap agregat di atas
+                                            diambil dari data jurnal ini.
                                         </p>
                                     </div>
                                 ) : (

@@ -2,13 +2,13 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     Bookmark,
+    CalendarDays,
     GraduationCap,
     House,
     LayoutGrid,
     LogOut,
     Settings,
     User,
-    Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
@@ -21,6 +21,7 @@ interface MenuItem {
     href: string;
     icon: LucideIcon;
     adminOnly?: boolean;
+    waliOrAdminOnly?: boolean;
     match: (url: string) => boolean;
 }
 
@@ -40,13 +41,15 @@ const MENU_ITEMS: MenuItem[] = [
         match: (url) => url.startsWith('/jurnal'),
     },
     {
-        key: 'absensi',
-        label: 'Absensi Siswa',
-        href: '/jurnal',
-        icon: Users,
-        // Tidak pernah aktif: belum ada modul absensi mandiri,
-        // tautan mengarah ke daftar jurnal (rekap H/I/S/A).
-        match: () => false,
+        // Absensi dikelola per jurnal (lihat Detail Jurnal > Kelola
+        // Absensi); tidak ada halaman absensi mandiri, jadi menu ini
+        // diganti Jadwal agar sama dengan bottom-nav dan sidebar.
+        key: 'jadwal',
+        label: 'Jadwal Pelajaran',
+        href: '/jadwal',
+        icon: CalendarDays,
+        waliOrAdminOnly: true,
+        match: (url) => url.startsWith('/jadwal'),
     },
     {
         key: 'kelas',
@@ -89,11 +92,15 @@ function getInitials(name: string): string {
 
 export default function Profil() {
     const page = usePage();
-    const { auth } = page.props as unknown as { auth: Auth };
+    const { auth, isWali } = page.props as unknown as {
+        auth: Auth;
+        isWali: boolean;
+    };
     const { url } = page;
     const cleanup = useMobileNavigation();
     const user = auth.user;
     const isAdmin = user.role === 'admin';
+    const canSeeJadwal = isAdmin || isWali === true;
     const roleLabel =
         user.role === 'admin' ? 'Admin' : user.role === 'mpk' ? 'MPK' : 'Guru';
 
@@ -129,7 +136,9 @@ export default function Profil() {
                 {/* Menu */}
                 <section className="grid grid-cols-1 gap-[11px] bg-[#F6F8FC] p-[22px] lg:grid-cols-2 lg:rounded-2xl lg:bg-[#F6F8FC] lg:p-6">
                     {MENU_ITEMS.filter(
-                        (item) => !item.adminOnly || isAdmin,
+                        (item) =>
+                            (!item.adminOnly || isAdmin) &&
+                            (!item.waliOrAdminOnly || canSeeJadwal),
                     ).map((item) => {
                         const Icon = item.icon;
                         const isActive = item.match(url);

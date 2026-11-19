@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Jadwal;
 use App\Models\Journal;
+use App\Models\TahunAjaran;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -70,6 +71,15 @@ class GenerateSlotJurnal extends Command
 
         $jadwals = Jadwal::where('aktif', true)->where('hari', $hari)->get();
 
+        // Slot baru hanya terbit dari jadwal tahun ajaran AKTIF (jadwal
+        // lama sudah dinonaktifkan saat rollover; filter ini jaring kedua).
+        // Tanpa tahun aktif (install lama/test) semua jadwal aktif dipakai.
+        $aktif = TahunAjaran::aktif();
+
+        if ($aktif !== null) {
+            $jadwals = $jadwals->where('tahun_ajaran', $aktif->nama);
+        }
+
         $dibuat = 0;
         foreach ($jadwals as $jadwal) {
             if ($jadwal->guru_id === null) {
@@ -80,12 +90,15 @@ class GenerateSlotJurnal extends Command
 
             // firstOrCreate + unique [jadwal_id, tanggal] = idempotent:
             // dijalankan 2x di hari yang sama hasilnya tetap 1 baris.
+            // tahun_ajaran+semester mengikuti jadwal induk (creating hook
+            // Jurnal jadi cadangan bila jadwal induk belum punya nilai).
             if (Journal::firstOrCreate(
                 ['jadwal_id' => $jadwal->id, 'tanggal' => $tanggal],
                 [
                     'guru_id' => $jadwal->guru_id,
                     'kelas_id' => $jadwal->kelas_id,
                     'mapel_id' => $jadwal->mapel_id,
+                    'tahun_ajaran' => $jadwal->tahun_ajaran,
                     'jam_mulai' => $jadwal->jam_mulai,
                     'jam_selesai' => $jadwal->jam_selesai,
                     'status' => Journal::STATUS_MENUNGGU,

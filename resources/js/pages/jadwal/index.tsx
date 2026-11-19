@@ -4,7 +4,6 @@ import { useState } from 'react';
 import EmptyState from '@/components/empty-state';
 import FormField, { INPUT_CLASS } from '@/components/form-field';
 import PageShell from '@/components/page-shell';
-import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Jadwal', href: '/jadwal' }];
@@ -366,7 +365,7 @@ export default function JadwalIndex({
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head
                 title={`Jadwal${kelasAktif ? `: ${kelasAktif.nama_kelas}` : ''}`}
             />
@@ -695,6 +694,10 @@ export default function JadwalIndex({
                     </section>
                 )}
             </PageShell>
-        </AppLayout>
+        </>
     );
 }
+
+JadwalIndex.layout = {
+    breadcrumbs,
+};

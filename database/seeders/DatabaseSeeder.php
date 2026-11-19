@@ -21,10 +21,12 @@ class DatabaseSeeder extends Seeder
         // lalu user (dibutuhkan wali & guru pengampu),
         // lalu jadwal (dibutuhkan slot jurnal).
         $this->call([
+            JurusanSeeder::class,
             KelasSeeder::class,
             MataPelajaranSeeder::class,
             AdminSeeder::class,
             UserSeeder::class,
+            TahunAjaranSeeder::class,
             JadwalSeeder::class,
             JurnalCekMpkSeeder::class,
         ]);

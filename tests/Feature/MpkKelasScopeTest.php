@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ClassRoom;
 use App\Models\Journal;
+use App\Models\Jurusan;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,8 +33,8 @@ class MpkKelasScopeTest extends TestCase
     public function test_mpk_hanya_melihat_jurnal_kelasnya(): void
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $kelasA = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan' => 'Umum', 'tingkat' => 10]);
-        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan' => 'Umum', 'tingkat' => 10]);
+        $kelasA = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
+        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
         $mapel = Subject::create(['nama_mapel' => 'Matematika', 'kode_mapel' => 'MTK']);
         $mpkA = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelasA->id]);
 
@@ -51,8 +52,8 @@ class MpkKelasScopeTest extends TestCase
     public function test_mpk_tidak_bisa_validasi_kelas_lain(): void
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $kelasA = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan' => 'Umum', 'tingkat' => 10]);
-        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan' => 'Umum', 'tingkat' => 10]);
+        $kelasA = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
+        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
         $mapel = Subject::create(['nama_mapel' => 'Matematika', 'kode_mapel' => 'MTK']);
         $mpkA = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelasA->id]);
 
@@ -68,7 +69,7 @@ class MpkKelasScopeTest extends TestCase
     public function test_mpk_tanpa_kelas_tidak_melihat_apapun(): void
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $kelas = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan' => 'Umum', 'tingkat' => 10]);
+        $kelas = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
         $mapel = Subject::create(['nama_mapel' => 'Matematika', 'kode_mapel' => 'MTK']);
         $mpk = User::factory()->create(['role' => 'mpk', 'kelas_id' => null]);
 
@@ -84,8 +85,8 @@ class MpkKelasScopeTest extends TestCase
     public function test_notifikasi_hanya_untuk_mpk_kelas_bersangkutan(): void
     {
         $guru = User::factory()->create(['role' => 'guru']);
-        $kelasA = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan' => 'Umum', 'tingkat' => 10]);
-        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan' => 'Umum', 'tingkat' => 10]);
+        $kelasA = ClassRoom::create(['nama_kelas' => 'X-A', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
+        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
         $mapel = Subject::create(['nama_mapel' => 'Matematika', 'kode_mapel' => 'MTK']);
         $mpkA = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelasA->id]);
         $mpkB = User::factory()->create(['role' => 'mpk', 'kelas_id' => $kelasB->id]);

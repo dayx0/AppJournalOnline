@@ -8,6 +8,7 @@ use App\Imports\JadwalRowsImport;
 use App\Models\ClassRoom;
 use App\Models\Jadwal;
 use App\Models\Subject;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -163,6 +164,9 @@ class JadwalController extends Controller
         $this->authorize('create', [Jadwal::class, $kelas]);
         $this->assertTidakBentrok($validated);
 
+        // Jadwal baru selalu milik tahun ajaran aktif (creating hook jadi
+        // cadangan bila TahunAjaran belum di-seed).
+        $validated['tahun_ajaran'] = TahunAjaran::aktif()?->nama;
         Jadwal::create($validated);
 
         return back()->with('success', 'Jadwal berhasil ditambah');
@@ -171,6 +175,7 @@ class JadwalController extends Controller
     public function update(Request $request, Jadwal $jadwal)
     {
         $this->authorize('update', $jadwal);
+        $this->ensureTidakTerkunci($jadwal);
 
         // Aturan validasi SAMA PERSIS dengan store(): update tidak boleh
         // lebih longgar dari create, kalau tidak user bisa mengakali
@@ -197,6 +202,7 @@ class JadwalController extends Controller
     public function destroy(Jadwal $jadwal)
     {
         $this->authorize('delete', $jadwal);
+        $this->ensureTidakTerkunci($jadwal);
         // Jurnal yang sudah terbit TIDAK ikut hapus (nullOnDelete):
         // jadwal_id-nya jadi NULL tapi riwayat jurnal aman.
         $jadwal->delete();
@@ -431,6 +437,18 @@ class JadwalController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Jadwal milik tahun terkunci tak boleh diubah/dihapus: arsip hanya
+     * dibaca. Jadwal aktif (atau legacy tanpa tahun) tetap boleh.
+     */
+    private function ensureTidakTerkunci(Jadwal $jadwal): void
+    {
+        abort_if(
+            TahunAjaran::isTahunTerkunci($jadwal->tahun_ajaran),
+            422, 'Jadwal arsip tahun ajaran '.$jadwal->tahun_ajaran.' sudah dikunci.'
+        );
     }
 
     /**

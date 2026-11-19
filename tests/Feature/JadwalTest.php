@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ClassRoom;
 use App\Models\Jadwal;
 use App\Models\Journal;
+use App\Models\Jurusan;
 use App\Models\Subject;
 use App\Models\User;
 use Carbon\Carbon;
@@ -22,7 +23,7 @@ class JadwalTest extends TestCase
 
     private function master(string $namaKelas = 'X PPLG'): array
     {
-        $kelas = ClassRoom::create(['nama_kelas' => $namaKelas, 'jurusan' => 'RPL', 'tingkat' => 10]);
+        $kelas = ClassRoom::create(['nama_kelas' => $namaKelas, 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'RPL'], ['nama' => 'Rekayasa Perangkat Lunak', 'kelompok' => 'RPL'])->id, 'tingkat' => 10]);
         $mapel = Subject::create(['nama_mapel' => 'Pemrograman Web', 'kode_mapel' => 'PWEB']);
         $guru = User::factory()->create(['role' => 'guru']);
 
@@ -92,7 +93,7 @@ class JadwalTest extends TestCase
     public function test_wali_mengelola_kelasnya_tapi_ditolak_di_kelas_lain(): void
     {
         [$kelasA, $mapel, $guruA] = $this->master('X-A');
-        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan' => 'RPL', 'tingkat' => 10]);
+        $kelasB = ClassRoom::create(['nama_kelas' => 'X-B', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'RPL'], ['nama' => 'Rekayasa Perangkat Lunak', 'kelompok' => 'RPL'])->id, 'tingkat' => 10]);
         $kelasA->update(['wali_kelas_id' => $guruA->id]);
 
         // Wali boleh membuat jadwal di kelasnya.
@@ -437,7 +438,7 @@ class JadwalTest extends TestCase
         [$kelas] = $this->master('XII RPL');
         $guru = User::factory()->create(['role' => 'guru', 'email' => 'mj@sekolah.test']);
         $kelas->update(['wali_kelas_id' => $guru->id]);
-        ClassRoom::create(['nama_kelas' => 'X LAIN', 'jurusan' => 'Umum', 'tingkat' => 10]);
+        ClassRoom::create(['nama_kelas' => 'X LAIN', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'UMUM'], ['nama' => 'Umum', 'kelompok' => 'UMUM'])->id, 'tingkat' => 10]);
 
         $this->actingAs($guru)->post(route('jadwal.import.preview'), [
             'file' => $this->fileExcel([

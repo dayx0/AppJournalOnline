@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ClassRoom;
 use App\Models\Journal;
+use App\Models\Jurusan;
 use App\Models\Siswa;
 use App\Models\Subject;
 use App\Models\User;
@@ -25,7 +26,7 @@ class RekapHistoryTest extends TestCase
 
     private function master(): array
     {
-        $kelas = ClassRoom::create(['nama_kelas' => 'XII IPA 1', 'jurusan' => 'IPA', 'tingkat' => 'XII']);
+        $kelas = ClassRoom::create(['nama_kelas' => 'XII IPA 1', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'IPA'], ['nama' => 'IPA', 'kelompok' => 'IPA'])->id, 'tingkat' => 12]);
         $mapel = Subject::create(['nama_mapel' => 'Matematika', 'kode_mapel' => 'MTK']);
 
         return [$kelas, $mapel];
@@ -33,7 +34,7 @@ class RekapHistoryTest extends TestCase
 
     private function journal(User $guru, string $tanggal = '2026-09-10', string $status = 'pending', ?ClassRoom $kelas = null, ?Subject $mapel = null): Journal
     {
-        $kelas ??= ClassRoom::create(['nama_kelas' => 'XII IPA '.fake()->unique()->numberBetween(1, 99), 'jurusan' => 'IPA', 'tingkat' => 'XII']);
+        $kelas ??= ClassRoom::create(['nama_kelas' => 'XII IPA '.fake()->unique()->numberBetween(1, 99), 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'IPA'], ['nama' => 'IPA', 'kelompok' => 'IPA'])->id, 'tingkat' => 12]);
         $mapel ??= Subject::create(['nama_mapel' => 'Matematika '.fake()->unique()->word(), 'kode_mapel' => 'MTK'.fake()->unique()->numberBetween(100, 999)]);
 
         return Journal::create([
@@ -168,7 +169,7 @@ class RekapHistoryTest extends TestCase
     {
         $guru = User::factory()->create(['role' => 'guru']);
         [$kelasA, $mapel] = $this->master();
-        $kelasB = ClassRoom::create(['nama_kelas' => 'XII IPS 1', 'jurusan' => 'IPS', 'tingkat' => 'XII']);
+        $kelasB = ClassRoom::create(['nama_kelas' => 'XII IPS 1', 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'IPS'], ['nama' => 'IPS', 'kelompok' => 'IPS'])->id, 'tingkat' => 12]);
         $mpkA = $this->makeMpk($kelasA);
 
         $jurnalA = $this->journal($guru, now()->toDateString(), 'pending', $kelasA, $mapel);

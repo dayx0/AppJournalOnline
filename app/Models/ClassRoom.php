@@ -10,7 +10,14 @@ class ClassRoom extends Model
 {
     protected $table = 'kelas';
 
-    protected $fillable = ['nama_kelas', 'wali_kelas_id', 'jurusan', 'tingkat'];
+    protected $fillable = ['nama_kelas', 'jurusan_id', 'wali_kelas_id', 'tingkat'];
+
+    protected $casts = ['tingkat' => 'integer'];
+
+    public function jurusan(): BelongsTo
+    {
+        return $this->belongsTo(Jurusan::class, 'jurusan_id');
+    }
 
     public function jurnal(): HasMany
     {

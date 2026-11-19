@@ -20,6 +20,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 /**
  * @property int $id
  * @property string $name
+ * @property string|null $kode_guru
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
@@ -29,15 +30,71 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property int|null $kelas_id
+ * @property bool $is_active
+ * @property bool $must_change_password
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'role', 'kelas_id'])]
+#[Fillable(['name', 'kode_guru', 'email', 'password', 'role', 'kelas_id', 'is_active', 'must_change_password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    protected static function booted(): void
+    {
+        // Kode guru selalu mengikuti nama (huruf awal tiap kata).
+        // Non-guru tidak punya kode (null).
+        static::creating(function (User $user) {
+            $user->kode_guru = $user->role === 'guru'
+                ? self::generateKodeGuru((string) $user->name)
+                : null;
+        });
+
+        static::updating(function (User $user) {
+            if ($user->isDirty('name') || $user->isDirty('role')) {
+                $user->kode_guru = $user->role === 'guru'
+                    ? self::generateKodeGuru((string) $user->name)
+                    : null;
+            }
+        });
+    }
+
+    /**
+     * "Ana Himmatun Ulya" -> "AHU". Isi dalam kurung diabaikan
+     * ("Ro (KK RPL)" -> "RO"). Satu kata pendek yang sudah berupa
+     * kode ("AHU", "DS") dipakai utuh; satu kata panjang ("Sutrisno")
+     * cukup huruf pertamanya ("S").
+     */
+    public static function generateKodeGuru(string $nama): string
+    {
+        $bersih = trim((string) preg_replace('/\([^)]*\)/', ' ', $nama));
+        $kata = preg_split('/\s+/', $bersih, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $kata = array_values(array_filter($kata, fn ($k) => preg_match('/[A-Za-z]/', $k)));
+
+        if (empty($kata)) {
+            return '';
+        }
+
+        if (count($kata) === 1) {
+            $huruf = (string) preg_replace('/[^A-Za-z]/', '', $kata[0]);
+            if ($huruf === '') {
+                return '';
+            }
+
+            return strlen($huruf) <= 4 ? strtoupper($huruf) : strtoupper($huruf[0]);
+        }
+
+        $kode = '';
+        foreach ($kata as $k) {
+            if (preg_match('/[A-Za-z]/', $k, $m)) {
+                $kode .= strtoupper($m[0]);
+            }
+        }
+
+        return $kode;
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -111,6 +168,14 @@ class User extends Authenticatable implements PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
+    }
+
+    /** Akun nonaktif = sudah lulus/dinonaktifkan: tak boleh login. */
+    public function isAktif(): bool
+    {
+        return (bool) $this->is_active;
     }
 }

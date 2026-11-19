@@ -157,10 +157,10 @@ export default function Absensi({ journal }: Props) {
     );
 
     const tabButtonClass = (isActive: boolean) =>
-        `flex-1 rounded-[18px] py-2 text-xs whitespace-nowrap ${
+        `flex-1 rounded-xl p-2.5 text-[13px] whitespace-nowrap ${
             isActive
-                ? 'bg-[#2563EB] font-bold text-white'
-                : 'border border-[#E5E9F2] bg-white font-normal text-[#6B7280]'
+                ? 'bg-[#2563EB] font-semibold text-white'
+                : 'border border-[#E5E9F2] bg-white font-medium text-[#6B7280]'
         }`;
 
     return (
@@ -270,10 +270,9 @@ export default function Absensi({ journal }: Props) {
                             <>
                                 <div className="rounded-xl border border-dashed border-[#C7D2FE] bg-[#EFF4FF] p-3">
                                     <p className="text-xs font-normal text-[#1E40AF]">
-                                        Daftar per nama siswa akan tampil
-                                        setelah modul data siswa tersedia. Untuk
-                                        saat ini, kelola rekap angka kehadiran
-                                        di bawah ini.
+                                        Kehadiran per nama siswa belum tersedia.
+                                        Untuk saat ini, kelola rekap angka
+                                        kehadiran di bawah ini.
                                     </p>
                                 </div>
 

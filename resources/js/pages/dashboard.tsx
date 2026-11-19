@@ -16,6 +16,7 @@ interface Stats {
     totalJurnal: number;
     totalKelas: number;
     totalMapel: number;
+    totalSiswa: number;
     jurnalMingguIni: number;
 }
 
@@ -122,14 +123,10 @@ export default function Dashboard({
                         iconWrapperClass="bg-[#EFF4FF]"
                         iconClass="text-[#2563EB]"
                     />
-                    {/*
-                     * Belum ada tabel siswa di database,
-                     * jadi kartu ini menampilkan tanda strip.
-                     */}
                     <StatCard
                         label="Jumlah Siswa"
-                        value="–"
-                        sub="Belum ada data siswa"
+                        value={String(stats.totalSiswa)}
+                        sub="Terdaftar di sistem"
                         icon={Users}
                         iconWrapperClass="bg-[#E8F7EE]"
                         iconClass="text-[#16A34A]"

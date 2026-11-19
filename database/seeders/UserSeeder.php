@@ -43,7 +43,7 @@ class UserSeeder extends Seeder
             ['name' => 'NF (PABP)', 'email' => 'nf@sekolah.test', 'role' => 'guru'],
             ['name' => 'DN (MTK)', 'email' => 'dn@sekolah.test', 'role' => 'guru'],
             ['name' => 'HI (BK)', 'email' => 'hi@sekolah.test', 'role' => 'guru'],
-            ['name' => 'DP (BI)', 'email' => 'dp@sekolah.test', 'role' => 'guru'],
+            ['name' => 'DP (BIN)', 'email' => 'dp@sekolah.test', 'role' => 'guru'],
         ];
 
         foreach ($users as $user) {
@@ -51,6 +51,11 @@ class UserSeeder extends Seeder
                 ['email' => $user['email']],
                 [
                     'name' => $user['name'],
+                    // DatabaseSeeder memakai WithoutModelEvents sehingga hook
+                    // model tidak jalan saat seeding — isi kode eksplisit.
+                    'kode_guru' => $user['role'] === 'guru'
+                        ? User::generateKodeGuru($user['name'])
+                        : null,
                     'password' => Hash::make('password'),
                     'role' => $user['role'],
                     'kelas_id' => null,

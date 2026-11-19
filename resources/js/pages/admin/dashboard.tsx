@@ -2,7 +2,6 @@ import { Head } from '@inertiajs/react';
 import { BookOpen, School, Users } from 'lucide-react';
 import PageShell from '@/components/page-shell';
 import StatCard from '@/components/stat-card';
-import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 type Stats = {
@@ -17,7 +16,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function AdminDashboard({ stats }: { stats: Stats }) {
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head title="Admin Dashboard" />
             <PageShell
                 title="Dashboard Admin"
@@ -50,6 +49,10 @@ export default function AdminDashboard({ stats }: { stats: Stats }) {
                     />
                 </section>
             </PageShell>
-        </AppLayout>
+        </>
     );
 }
+
+AdminDashboard.layout = {
+    breadcrumbs,
+};
