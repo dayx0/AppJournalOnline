@@ -21,6 +21,8 @@ class Journal extends Model
         'jadwal_id',
         'mapel_id',
         'tanggal',
+        'tahun_ajaran',
+        'semester',
         'jam_mulai',
         'jam_selesai',
         'materi',
@@ -31,6 +33,26 @@ class Journal extends Model
         'validated_at',
         'validation_note',
     ];
+
+    protected static function booted(): void
+    {
+        // Cap otomatis tahun ajaran+semester agar data baru tak pernah
+        // tercampur dengan arsip. Mengikuti jadwal induk bila ada.
+        static::creating(function (Journal $journal) {
+            if ($journal->jadwal_id && $journal->tahun_ajaran === null) {
+                $jadwal = Jadwal::find($journal->jadwal_id);
+                $journal->tahun_ajaran = $jadwal?->tahun_ajaran;
+            }
+
+            if ($journal->tahun_ajaran === null && $journal->tanggal) {
+                $journal->tahun_ajaran = TahunAjaran::namaUntukTanggal($journal->tanggal);
+            }
+
+            if ($journal->semester === null && $journal->tanggal) {
+                $journal->semester = TahunAjaran::semesterUntukTanggal($journal->tanggal);
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -50,6 +72,12 @@ class Journal extends Model
     public const STATUS_IZIN = 'izin';
 
     public const STATUS_TERLAMBAT = 'terlambat';
+
+    /** Arsip tahun ajaran lama = read-only total (guru, MPK, bahkan admin). */
+    public function isTerkunci(): bool
+    {
+        return TahunAjaran::isTerkunci($this->tahun_ajaran, $this->semester);
+    }
 
     public function jadwal(): BelongsTo
     {

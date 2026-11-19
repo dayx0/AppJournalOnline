@@ -3,7 +3,6 @@ import { ArrowLeft, CircleAlert, CircleCheck } from 'lucide-react';
 import { useState } from 'react';
 import EmptyState from '@/components/empty-state';
 import PageShell from '@/components/page-shell';
-import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -57,7 +56,7 @@ export default function ImportPreview({
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head title="Pratinjau Import Jadwal" />
             <PageShell
                 framed={false}
@@ -153,6 +152,10 @@ export default function ImportPreview({
                     </section>
                 )}
             </PageShell>
-        </AppLayout>
+        </>
     );
 }
+
+ImportPreview.layout = {
+    breadcrumbs,
+};

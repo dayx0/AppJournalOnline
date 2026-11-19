@@ -179,7 +179,7 @@ export default function Index({
     const filteredJournals = useMemo(() => {
         const keyword = query.trim().toLowerCase();
 
-        return journals.filter((journal) => {
+        const list = journals.filter((journal) => {
             if (!matchDateFilter(journal.tanggal, dateFilter)) {
                 return false;
             }
@@ -201,7 +201,27 @@ export default function Index({
 
             return haystack.includes(keyword);
         });
+
+        // Terbaru dulu agar grup tanggal tampil menurun seperti desain.
+        return [...list].sort((a, b) => b.tanggal.localeCompare(a.tanggal));
     }, [journals, query, dateFilter]);
+
+    // Kelompok per tanggal: satu header tanggal membawahi kartu-kartunya.
+    const groupedJournals = useMemo(() => {
+        const groups = new Map<string, Journal[]>();
+
+        for (const journal of filteredJournals) {
+            const bucket = groups.get(journal.tanggal);
+
+            if (bucket) {
+                bucket.push(journal);
+            } else {
+                groups.set(journal.tanggal, [journal]);
+            }
+        }
+
+        return [...groups.entries()];
+    }, [filteredJournals]);
 
     return (
         <>
@@ -429,61 +449,91 @@ export default function Index({
                             }
                         />
                     ) : (
-                        <div className="grid grid-cols-1 gap-[19px] md:grid-cols-2 xl:grid-cols-3">
-                            {filteredJournals.map((journal) => {
-                                const status: ValidationStatus =
-                                    journal.status ?? 'pending';
+                        <div className="flex flex-col gap-[19px]">
+                            {groupedJournals.map(([tanggal, items]) => (
+                                <div
+                                    key={tanggal}
+                                    className="flex flex-col gap-2.5"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-[13px] font-bold whitespace-nowrap text-[#1A1D26]">
+                                            {formatTanggal(tanggal)}
+                                        </span>
+                                        <span className="rounded-full bg-[#EFF4FF] px-2.5 py-1 text-[10px] font-semibold whitespace-nowrap text-[#2563EB]">
+                                            {items.length} jurnal
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-[19px] md:grid-cols-2 xl:grid-cols-3">
+                                        {items.map((journal) => {
+                                            const status: ValidationStatus =
+                                                journal.status ?? 'pending';
 
-                                return (
-                                    <article
-                                        key={journal.id}
-                                        className="flex items-center gap-2 rounded-xl bg-white p-[14px] shadow-[0px_2px_10px_0px_#0F172A0D]"
-                                    >
-                                        <Link
-                                            href={`/jurnal/${journal.id}`}
-                                            className="flex min-w-0 flex-1 items-center gap-2"
-                                        >
-                                            <div className="flex min-w-0 flex-1 flex-col gap-[15px]">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[13px] font-bold whitespace-nowrap text-[#1A1D26]">
-                                                        {formatTanggal(
-                                                            journal.tanggal,
-                                                        )}
-                                                    </span>
-                                                    <StatusBadge
-                                                        status={status}
-                                                    />
-                                                </div>
-                                                <span className="truncate text-xs font-semibold text-[#1A1D26]">
-                                                    {journal.kelas
-                                                        ?.nama_kelas ??
-                                                        '-'}{' '}
-                                                    &bull;{' '}
-                                                    {journal.mataPelajaran
-                                                        ?.nama_mapel ?? '-'}
-                                                </span>
-                                                <span className="line-clamp-2 text-xs font-normal text-[#6B7280]">
-                                                    Materi:{' '}
-                                                    {journal.materi ??
-                                                        '(belum diisi)'}
-                                                </span>
-                                            </div>
-                                            <ChevronRight className="h-5 w-5 shrink-0 text-[#6B7280]" />
-                                        </Link>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                hapusJurnal(journal.id)
-                                            }
-                                            aria-label="Hapus jurnal"
-                                            title="Hapus jurnal"
-                                            className="flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-lg text-[#DC2626] transition hover:bg-[#FDECEC]"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </article>
-                                );
-                            })}
+                                            return (
+                                                <article
+                                                    key={journal.id}
+                                                    className="flex items-center gap-2 rounded-xl bg-white p-[14px] shadow-[0px_2px_10px_0px_#0F172A0D]"
+                                                >
+                                                    <Link
+                                                        href={`/jurnal/${journal.id}`}
+                                                        className="flex min-w-0 flex-1 items-center gap-2"
+                                                    >
+                                                        <div className="flex min-w-0 flex-1 flex-col gap-[15px]">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="truncate text-xs font-semibold text-[#1A1D26]">
+                                                                    {journal
+                                                                        .kelas
+                                                                        ?.nama_kelas ??
+                                                                        '-'}{' '}
+                                                                    &bull;{' '}
+                                                                    {journal
+                                                                        .mataPelajaran
+                                                                        ?.nama_mapel ??
+                                                                        '-'}
+                                                                </span>
+                                                                <StatusBadge
+                                                                    status={
+                                                                        status
+                                                                    }
+                                                                />
+                                                            </div>
+                                                            <span className="text-[11px] font-normal whitespace-nowrap text-[#9CA3AF]">
+                                                                {journal.jam_mulai.slice(
+                                                                    0,
+                                                                    5,
+                                                                )}{' '}
+                                                                –{' '}
+                                                                {journal.jam_selesai.slice(
+                                                                    0,
+                                                                    5,
+                                                                )}
+                                                            </span>
+                                                            <span className="line-clamp-2 text-xs font-normal text-[#6B7280]">
+                                                                Materi:{' '}
+                                                                {journal.materi ??
+                                                                    '(belum diisi)'}
+                                                            </span>
+                                                        </div>
+                                                        <ChevronRight className="h-5 w-5 shrink-0 text-[#6B7280]" />
+                                                    </Link>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            hapusJurnal(
+                                                                journal.id,
+                                                            )
+                                                        }
+                                                        aria-label="Hapus jurnal"
+                                                        title="Hapus jurnal"
+                                                        className="flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-lg text-[#DC2626] transition hover:bg-[#FDECEC]"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </section>

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ClassRoom;
+use App\Models\Jurusan;
 use App\Models\Siswa;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +20,7 @@ class AdminMpkSiswaTest extends TestCase
 
     private function kelas(string $nama = 'XII IPA 1'): ClassRoom
     {
-        return ClassRoom::create(['nama_kelas' => $nama, 'jurusan' => 'IPA', 'tingkat' => 'XII']);
+        return ClassRoom::create(['nama_kelas' => $nama, 'jurusan_id' => Jurusan::firstOrCreate(['kode' => 'IPA'], ['nama' => 'IPA', 'kelompok' => 'IPA'])->id, 'tingkat' => 12]);
     }
 
     public function test_admin_membuat_mpk_ikut_membuat_baris_siswa()

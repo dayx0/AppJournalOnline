@@ -5,7 +5,6 @@ import EmptyState from '@/components/empty-state';
 import FormField, { INPUT_CLASS } from '@/components/form-field';
 import PageShell from '@/components/page-shell';
 import SimplePager from '@/components/simple-pager';
-import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -76,7 +75,7 @@ export default function MapelIndex({ mapels }: { mapels: PaginatedMapel }) {
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head title="Kelola Mapel" />
             <PageShell
                 title="Kelola Mapel"
@@ -282,6 +281,10 @@ export default function MapelIndex({ mapels }: { mapels: PaginatedMapel }) {
                     <Plus className="h-[26px] w-[26px] text-white" />
                 )}
             </button>
-        </AppLayout>
+        </>
     );
 }
+
+MapelIndex.layout = {
+    breadcrumbs,
+};

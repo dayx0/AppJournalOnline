@@ -35,6 +35,10 @@ class UserFactory extends Factory
             'role' => 'guru',
             // MPK baru default belum ditempati di kelas manapun.
             'kelas_id' => null,
+            // Status akun eksplisit (jangan andalkan default DB: model
+            // in-memory hasil factory.create() tak membawa default kolom).
+            'is_active' => true,
+            'must_change_password' => false,
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,

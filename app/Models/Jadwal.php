@@ -20,8 +20,19 @@ class Jadwal extends Model
     ];
 
     protected $fillable = [
-        'kelas_id', 'mapel_id', 'guru_id', 'hari', 'jam_mulai', 'jam_selesai', 'semester', 'aktif',
+        'kelas_id', 'mapel_id', 'guru_id', 'hari', 'jam_mulai', 'jam_selesai', 'semester', 'tahun_ajaran', 'aktif',
     ];
+
+    protected static function booted(): void
+    {
+        // Jadwal baru selalu milik tahun ajaran aktif (mulai kosong tiap
+        // tahun ajaran baru — jadwal lama dinonaktifkan, bukan dihapus).
+        static::creating(function (Jadwal $jadwal) {
+            if ($jadwal->tahun_ajaran === null) {
+                $jadwal->tahun_ajaran = TahunAjaran::aktif()?->nama;
+            }
+        });
+    }
 
     protected function casts(): array
     {

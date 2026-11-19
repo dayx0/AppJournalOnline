@@ -5,7 +5,6 @@ import EmptyState from '@/components/empty-state';
 import FormField, { INPUT_CLASS } from '@/components/form-field';
 import PageShell from '@/components/page-shell';
 import SimplePager from '@/components/simple-pager';
-import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -17,6 +16,7 @@ type Role = 'guru' | 'admin' | 'mpk';
 type User = {
     id: number;
     name: string;
+    kode_guru?: string | null;
     email: string;
     role: string;
     kelas_id: number | null;
@@ -153,7 +153,7 @@ export default function UsersIndex({
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head title="Kelola User" />
             <PageShell
                 title="Kelola User"
@@ -476,6 +476,9 @@ export default function UsersIndex({
                                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                                         <span className="truncate text-[13px] font-semibold text-[#1A1D26]">
                                             {u.name}
+                                            {u.role === 'guru' && u.kode_guru
+                                                ? ` (${u.kode_guru})`
+                                                : ''}
                                         </span>
                                         <span className="truncate text-[11px] font-normal text-[#6B7280]">
                                             {u.email}
@@ -535,6 +538,10 @@ export default function UsersIndex({
                     <Plus className="h-[26px] w-[26px] text-white" />
                 )}
             </button>
-        </AppLayout>
+        </>
     );
 }
+
+UsersIndex.layout = {
+    breadcrumbs,
+};

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ClassRoomController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\JournalMonitorController;
 use App\Http\Controllers\Admin\SubjectController;
+use App\Http\Controllers\Admin\TahunAjaranController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\Mpk\DashboardController as MpkDashboardController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\NotificationController as InboxNotificationController;
 use App\Http\Controllers\Wali\JadwalController as WaliJadwalController;
 use App\Models\ClassRoom;
 use App\Models\Journal;
+use App\Models\Siswa;
 use App\Models\Subject;
 use App\Services\JournalNotificationService;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +27,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         if (auth()->user()->isMpk()) {
             return redirect()->route('mpk.dashboard');
+        }
+
+        // Admin punya dasbor sendiri (/admin/dashboard); mengarahkan ke
+        // sana agar tidak ada dua dasbor yang membingungkan.
+        if (auth()->user()->isAdmin()) {
+            return redirect()->route('admin.dashboard');
         }
 
         $guruId = auth()->id();
@@ -40,6 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'totalJurnal' => Journal::where('guru_id', $guruId)->count(),
                 'totalKelas' => ClassRoom::count(),
                 'totalMapel' => Subject::count(),
+                'totalSiswa' => Siswa::count(),
                 'jurnalMingguIni' => Journal::where('guru_id', $guruId)
                     ->where('tanggal', '>=', now()->subDays(7)->toDateString())
                     ->count(),
@@ -123,6 +132,10 @@ Route::middleware(['auth', 'verified', 'isAdmin'])->prefix('admin')->name('admin
     Route::delete('/mapel/{subject}', [SubjectController::class, 'destroy'])->name('mapel.destroy');
 
     Route::get('/jurnal', [JournalMonitorController::class, 'index'])->name('jurnal.index');
+
+    Route::get('/tahun-ajaran', [TahunAjaranController::class, 'index'])->name('tahun-ajaran.index');
+    Route::post('/tahun-ajaran', [TahunAjaranController::class, 'store'])->name('tahun-ajaran.store');
+    Route::post('/tahun-ajaran/reset-mpk', [TahunAjaranController::class, 'resetMpk'])->name('tahun-ajaran.reset-mpk');
 });
 
 Route::middleware(['auth', 'verified', 'isMpk'])->prefix('mpk')->name('mpk.')->group(function () {

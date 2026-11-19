@@ -36,6 +36,18 @@ class JournalController extends Controller
         );
     }
 
+    /**
+     * Arsip tahun ajaran lama = read-only TOTAL, termasuk untuk admin.
+     * Frontend menyembunyikan tombol, tapi server yang memutuskan.
+     */
+    private function ensureTidakTerkunci(Journal $journal): void
+    {
+        abort_if(
+            $journal->isTerkunci(),
+            422, 'Arsip tahun ajaran '.$journal->tahun_ajaran.' sudah dikunci (read-only).'
+        );
+    }
+
     public function index(Request $request)
     {
         $request->validate(['tanggal' => 'nullable|date']);
@@ -109,6 +121,7 @@ class JournalController extends Controller
     public function update(Request $request, Journal $journal)
     {
         $this->ensureOwns($journal); // pola lama: admin bypass, guru harus pemilik
+        $this->ensureTidakTerkunci($journal);
         $this->ensureHariIni($journal);
 
         abort_if($journal->status === Journal::STATUS_IZIN, 422, 'Slot dispensasi tidak bisa diisi.');
@@ -154,6 +167,7 @@ class JournalController extends Controller
     public function destroy(Journal $journal)
     {
         $this->ensureOwns($journal);
+        $this->ensureTidakTerkunci($journal);
         JournalNotificationService::clearAllForJournal($journal->id);
         $journal->delete();
 
@@ -176,6 +190,7 @@ class JournalController extends Controller
     public function updateAbsensi(Request $request, Journal $journal)
     {
         $this->ensureOwns($journal);
+        $this->ensureTidakTerkunci($journal);
         // Konsisten dengan update(): jurnal final dan slot izin tidak bisa diubah.
         abort_if($journal->status === Journal::STATUS_IZIN, 422, 'Slot dispensasi tidak bisa diubah.');
         abort_if(in_array($journal->status, [Journal::STATUS_DIVALIDASI, Journal::STATUS_DITOLAK]), 422, 'Jurnal sudah final.');
@@ -201,6 +216,7 @@ class JournalController extends Controller
     public function tandaiIzin(Request $request, Journal $journal)
     {
         $this->ensureOwns($journal);
+        $this->ensureTidakTerkunci($journal);
         $this->ensureHariIni($journal);
         abort_unless($journal->status === Journal::STATUS_MENUNGGU, 422, 'Hanya slot menunggu.');
         $validated = $request->validate(['catatan' => 'required|string|max:1000']);

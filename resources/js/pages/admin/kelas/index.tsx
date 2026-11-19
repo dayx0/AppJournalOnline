@@ -5,7 +5,6 @@ import EmptyState from '@/components/empty-state';
 import FormField, { INPUT_CLASS } from '@/components/form-field';
 import PageShell from '@/components/page-shell';
 import SimplePager from '@/components/simple-pager';
-import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -14,11 +13,19 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type GuruOption = { id: number; name: string };
 
+type JurusanOption = {
+    id: number;
+    kode: string;
+    nama: string;
+    kelompok: string;
+};
+
 type Kelas = {
     id: number;
     nama_kelas: string;
-    jurusan: string;
     tingkat: number;
+    jurusan_id: number | null;
+    jurusan?: JurusanOption | null;
     wali_kelas_id: number | null;
     wali_kelas?: { id: number; name: string } | null;
 };
@@ -29,16 +36,90 @@ type PaginatedKelas = {
     total: number;
 };
 
+const ROMAWI: Record<number, string> = { 10: 'X', 11: 'XI', 12: 'XII' };
+
+function jurusanUntukTingkat(
+    jurusans: JurusanOption[],
+    allowedByTingkat: Record<string, string[]>,
+    tingkat: number,
+): JurusanOption[] {
+    const allowed = allowedByTingkat[String(tingkat)];
+
+    if (!allowed) {
+        return jurusans;
+    }
+
+    return jurusans.filter((j) => allowed.includes(j.kode));
+}
+
+function saranNama(tingkat: number, kode: string | undefined): string {
+    if (!kode) {
+        return '';
+    }
+
+    const romawi = ROMAWI[tingkat] ?? `T${tingkat}`;
+
+    // Rombel tunggal PPLG/RPL tanpa nomor (warisan: "X PPLG", "XII RPL").
+    if (['PPLG', 'RPL'].includes(kode)) {
+        return `${romawi} ${kode}`;
+    }
+
+    return `${romawi} ${kode} 1`;
+}
+
+function JurusanSelect({
+    id,
+    value,
+    onChange,
+    options,
+    error,
+}: {
+    id: string;
+    value: string;
+    onChange: (v: string) => void;
+    options: JurusanOption[];
+    error?: string;
+}) {
+    void error;
+
+    return (
+        <div className="relative">
+            <select
+                id={id}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className={`${INPUT_CLASS} appearance-none pr-9`}
+            >
+                <option value="">-- Pilih jurusan --</option>
+                {options.map((j) => (
+                    <option key={j.id} value={String(j.id)}>
+                        {j.kode} — {j.nama}
+                    </option>
+                ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+        </div>
+    );
+}
+
 export default function KelasIndex({
     kelas,
     guru,
+    jurusans,
+    allowedByTingkat,
+    filters,
+    counts,
 }: {
     kelas: PaginatedKelas;
     guru: GuruOption[];
+    jurusans: JurusanOption[];
+    allowedByTingkat: Record<string, string[]>;
+    filters: { tingkat: string; jurusan_id: string | null };
+    counts: Record<string, number>;
 }) {
     const { data, setData, post, reset, errors, processing } = useForm({
         nama_kelas: '',
-        jurusan: '',
+        jurusan_id: '' as string,
         tingkat: 10 as number,
         wali_kelas_id: '' as string,
     });
@@ -52,10 +133,115 @@ export default function KelasIndex({
         processing: editProcessing,
     } = useForm({
         nama_kelas: '',
-        jurusan: '',
+        jurusan_id: '' as string,
         tingkat: 10 as number,
         wali_kelas_id: '' as string,
     });
+
+    const tingkatAktif = filters?.tingkat ?? 'semua';
+    const jurusanAktif = filters?.jurusan_id ?? '';
+    const isFiltered = tingkatAktif !== 'semua' || jurusanAktif !== '';
+
+    const opsiFilterJurusan =
+        tingkatAktif === 'semua'
+            ? jurusans
+            : jurusanUntukTingkat(
+                  jurusans,
+                  allowedByTingkat,
+                  Number(tingkatAktif),
+              );
+
+    function navigasiFilter(tingkat: string, jurusanId: string) {
+        const params: Record<string, string> = {};
+
+        if (tingkat !== 'semua') {
+            params.tingkat = tingkat;
+        }
+
+        if (jurusanId !== '') {
+            params.jurusan_id = jurusanId;
+        }
+
+        router.get('/admin/kelas', params, {
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    function gantiTabTingkat(tingkat: string) {
+        // Ganti tingkat: jurusan yang tak berlaku di tingkat baru ikut direset.
+        let jurusan = jurusanAktif;
+
+        if (jurusan !== '' && tingkat !== 'semua') {
+            const allowed = allowedByTingkat[tingkat];
+            const kode = jurusans.find((j) => String(j.id) === jurusan)?.kode;
+
+            if (kode && allowed && !allowed.includes(kode)) {
+                jurusan = '';
+            }
+        }
+
+        navigasiFilter(tingkat, jurusan);
+    }
+
+    function gantiFilterJurusan(jurusanId: string) {
+        navigasiFilter(tingkatAktif, jurusanId);
+    }
+
+    function resetFilter() {
+        router.get('/admin/kelas', {}, { preserveState: true, replace: true });
+    }
+
+    const TABS: { value: string; label: string }[] = [
+        { value: 'semua', label: 'Semua' },
+        { value: '10', label: 'X' },
+        { value: '11', label: 'XI' },
+        { value: '12', label: 'XII' },
+    ];
+
+    const opsiTambah = jurusanUntukTingkat(
+        jurusans,
+        allowedByTingkat,
+        data.tingkat,
+    );
+    const opsiEdit = jurusanUntukTingkat(
+        jurusans,
+        allowedByTingkat,
+        editData.tingkat,
+    );
+    const kodeTambah = jurusans.find(
+        (j) => String(j.id) === data.jurusan_id,
+    )?.kode;
+    const kodeEdit = jurusans.find(
+        (j) => String(j.id) === editData.jurusan_id,
+    )?.kode;
+    const saranTambah = saranNama(data.tingkat, kodeTambah);
+    const saranEdit = saranNama(editData.tingkat, kodeEdit);
+
+    function gantiTingkatTambah(tingkat: number) {
+        setData('tingkat', tingkat);
+        // Reset jurusan yang tak berlaku di tingkat baru (mis. AKL di XI).
+        const allowed = allowedByTingkat[String(tingkat)];
+        const kode = jurusans.find(
+            (j) => String(j.id) === data.jurusan_id,
+        )?.kode;
+
+        if (kode && allowed && !allowed.includes(kode)) {
+            setData('jurusan_id', '');
+        }
+    }
+
+    function gantiTingkatEdit(tingkat: number) {
+        setEditData('tingkat', tingkat);
+        const allowed = allowedByTingkat[String(tingkat)];
+        const kode = jurusans.find(
+            (j) => String(j.id) === editData.jurusan_id,
+        )?.kode;
+
+        if (kode && allowed && !allowed.includes(kode)) {
+            setEditData('jurusan_id', '');
+        }
+    }
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
@@ -77,7 +263,7 @@ export default function KelasIndex({
         setEditing(k);
         setEditData({
             nama_kelas: k.nama_kelas,
-            jurusan: k.jurusan,
+            jurusan_id: k.jurusan_id ? String(k.jurusan_id) : '',
             tingkat: k.tingkat,
             wali_kelas_id: k.wali_kelas_id ? String(k.wali_kelas_id) : '',
         });
@@ -96,11 +282,15 @@ export default function KelasIndex({
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head title="Kelola Kelas" />
             <PageShell
                 title="Kelola Kelas"
-                subtitle={`${kelas.total ?? kelas.data.length} kelas terdaftar`}
+                subtitle={
+                    isFiltered
+                        ? `${kelas.total ?? kelas.data.length} kelas sesuai filter`
+                        : `${kelas.total ?? kelas.data.length} kelas terdaftar`
+                }
                 actions={
                     <button
                         type="button"
@@ -123,6 +313,43 @@ export default function KelasIndex({
                                 className="grid grid-cols-1 gap-3 lg:grid-cols-2"
                             >
                                 <FormField
+                                    label="Tingkat *"
+                                    htmlFor="tingkat"
+                                    error={errors.tingkat}
+                                >
+                                    <div className="relative">
+                                        <select
+                                            id="tingkat"
+                                            value={data.tingkat}
+                                            onChange={(e) =>
+                                                gantiTingkatTambah(
+                                                    Number(e.target.value),
+                                                )
+                                            }
+                                            className={`${INPUT_CLASS} appearance-none pr-9`}
+                                        >
+                                            <option value={10}>X (10)</option>
+                                            <option value={11}>XI (11)</option>
+                                            <option value={12}>XII (12)</option>
+                                        </select>
+                                        <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                    </div>
+                                </FormField>
+                                <FormField
+                                    label="Jurusan *"
+                                    htmlFor="jurusan"
+                                    error={errors.jurusan_id}
+                                >
+                                    <JurusanSelect
+                                        id="jurusan"
+                                        value={data.jurusan_id}
+                                        onChange={(v) =>
+                                            setData('jurusan_id', v)
+                                        }
+                                        options={opsiTambah}
+                                    />
+                                </FormField>
+                                <FormField
                                     label="Nama Kelas *"
                                     htmlFor="nama_kelas"
                                     error={errors.nama_kelas}
@@ -136,42 +363,27 @@ export default function KelasIndex({
                                                 e.target.value,
                                             )
                                         }
-                                        placeholder="Contoh: XII IPA 1"
-                                        className={INPUT_CLASS}
-                                    />
-                                </FormField>
-                                <FormField
-                                    label="Jurusan *"
-                                    htmlFor="jurusan"
-                                    error={errors.jurusan}
-                                >
-                                    <input
-                                        id="jurusan"
-                                        value={data.jurusan}
-                                        onChange={(e) =>
-                                            setData('jurusan', e.target.value)
-                                        }
-                                        placeholder="Contoh: IPA"
-                                        className={INPUT_CLASS}
-                                    />
-                                </FormField>
-                                <FormField
-                                    label="Tingkat *"
-                                    htmlFor="tingkat"
-                                    error={errors.tingkat}
-                                >
-                                    <input
-                                        id="tingkat"
-                                        type="number"
-                                        value={data.tingkat}
-                                        onChange={(e) =>
-                                            setData(
-                                                'tingkat',
-                                                Number(e.target.value),
-                                            )
+                                        placeholder={
+                                            saranTambah
+                                                ? `Contoh: ${saranTambah}`
+                                                : 'Contoh: X AKL 1'
                                         }
                                         className={INPUT_CLASS}
                                     />
+                                    {saranTambah && data.nama_kelas === '' && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setData(
+                                                    'nama_kelas',
+                                                    saranTambah,
+                                                )
+                                            }
+                                            className="mt-1 text-xs font-semibold text-[#2563EB] hover:underline"
+                                        >
+                                            Pakai saran: {saranTambah}
+                                        </button>
+                                    )}
                                 </FormField>
                                 <FormField
                                     label="Wali kelas"
@@ -228,6 +440,43 @@ export default function KelasIndex({
                                 className="grid grid-cols-1 gap-3 lg:grid-cols-2"
                             >
                                 <FormField
+                                    label="Tingkat *"
+                                    htmlFor="edit-tingkat"
+                                    error={editErrors.tingkat}
+                                >
+                                    <div className="relative">
+                                        <select
+                                            id="edit-tingkat"
+                                            value={editData.tingkat}
+                                            onChange={(e) =>
+                                                gantiTingkatEdit(
+                                                    Number(e.target.value),
+                                                )
+                                            }
+                                            className={`${INPUT_CLASS} appearance-none pr-9`}
+                                        >
+                                            <option value={10}>X (10)</option>
+                                            <option value={11}>XI (11)</option>
+                                            <option value={12}>XII (12)</option>
+                                        </select>
+                                        <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                                    </div>
+                                </FormField>
+                                <FormField
+                                    label="Jurusan *"
+                                    htmlFor="edit-jurusan"
+                                    error={editErrors.jurusan_id}
+                                >
+                                    <JurusanSelect
+                                        id="edit-jurusan"
+                                        value={editData.jurusan_id}
+                                        onChange={(v) =>
+                                            setEditData('jurusan_id', v)
+                                        }
+                                        options={opsiEdit}
+                                    />
+                                </FormField>
+                                <FormField
                                     label="Nama Kelas *"
                                     htmlFor="edit-nama"
                                     error={editErrors.nama_kelas}
@@ -241,40 +490,10 @@ export default function KelasIndex({
                                                 e.target.value,
                                             )
                                         }
-                                        className={INPUT_CLASS}
-                                    />
-                                </FormField>
-                                <FormField
-                                    label="Jurusan *"
-                                    htmlFor="edit-jurusan"
-                                    error={editErrors.jurusan}
-                                >
-                                    <input
-                                        id="edit-jurusan"
-                                        value={editData.jurusan}
-                                        onChange={(e) =>
-                                            setEditData(
-                                                'jurusan',
-                                                e.target.value,
-                                            )
-                                        }
-                                        className={INPUT_CLASS}
-                                    />
-                                </FormField>
-                                <FormField
-                                    label="Tingkat *"
-                                    htmlFor="edit-tingkat"
-                                    error={editErrors.tingkat}
-                                >
-                                    <input
-                                        id="edit-tingkat"
-                                        type="number"
-                                        value={editData.tingkat}
-                                        onChange={(e) =>
-                                            setEditData(
-                                                'tingkat',
-                                                Number(e.target.value),
-                                            )
+                                        placeholder={
+                                            saranEdit
+                                                ? `Contoh: ${saranEdit}`
+                                                : undefined
                                         }
                                         className={INPUT_CLASS}
                                     />
@@ -334,11 +553,95 @@ export default function KelasIndex({
                     </section>
                 )}
 
+                <section className="px-4 pt-3 lg:px-8">
+                    <div className="flex flex-col gap-3 rounded-2xl border border-[#E5E9F2] bg-white p-3.5">
+                        <div
+                            className="flex gap-2 overflow-x-auto pb-1"
+                            role="tablist"
+                            aria-label="Filter tingkat kelas"
+                        >
+                            {TABS.map((tab) => {
+                                const aktif = tingkatAktif === tab.value;
+                                const jumlah = counts?.[tab.value] ?? 0;
+
+                                return (
+                                    <button
+                                        key={tab.value}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={aktif}
+                                        onClick={() =>
+                                            gantiTabTingkat(tab.value)
+                                        }
+                                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap transition ${
+                                            aktif
+                                                ? 'bg-[#2563EB] text-white'
+                                                : 'border border-[#E5E9F2] bg-white text-[#6B7280] hover:border-[#2563EB] hover:text-[#2563EB]'
+                                        }`}
+                                    >
+                                        {tab.value === 'semua'
+                                            ? `Semua (${jumlah})`
+                                            : `${tab.label} (${jumlah})`}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                            <div className="relative flex-1">
+                                <label
+                                    htmlFor="filter-jurusan"
+                                    className="mb-1.5 block text-xs font-semibold text-[#1A1D26]"
+                                >
+                                    Jurusan
+                                </label>
+                                <select
+                                    id="filter-jurusan"
+                                    value={jurusanAktif}
+                                    onChange={(e) =>
+                                        gantiFilterJurusan(e.target.value)
+                                    }
+                                    className={`${INPUT_CLASS} appearance-none pr-9`}
+                                >
+                                    <option value="">
+                                        Semua jurusan
+                                    </option>
+                                    {opsiFilterJurusan.map((j) => (
+                                        <option
+                                            key={j.id}
+                                            value={String(j.id)}
+                                        >
+                                            {j.kode} — {j.nama}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="pointer-events-none absolute right-3 bottom-3.5 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                            </div>
+                            {isFiltered && (
+                                <button
+                                    type="button"
+                                    onClick={resetFilter}
+                                    className="inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] border border-[#E5E9F2] bg-white px-4 text-xs font-semibold whitespace-nowrap text-[#2563EB] transition hover:bg-[#EFF4FF]"
+                                >
+                                    Reset filter
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
                 <section className="flex flex-col gap-[19px] px-4 pt-3.5 pb-6 lg:px-8 lg:py-6">
                     {kelas.data.length === 0 ? (
                         <EmptyState
-                            title="Belum ada kelas"
-                            description="Tambahkan data kelas untuk dipakai di jurnal."
+                            title={
+                                isFiltered
+                                    ? 'Tidak ada kelas sesuai filter'
+                                    : 'Belum ada kelas'
+                            }
+                            description={
+                                isFiltered
+                                    ? 'Coba ubah tingkat atau jurusan yang dipilih.'
+                                    : 'Tambahkan data kelas untuk dipakai di jurnal.'
+                            }
                         />
                     ) : (
                         <div className="grid grid-cols-1 gap-[19px] md:grid-cols-2">
@@ -355,8 +658,11 @@ export default function KelasIndex({
                                             {k.nama_kelas}
                                         </span>
                                         <span className="truncate text-[11px] font-normal text-[#6B7280]">
-                                            {k.jurusan} &bull; Tingkat{' '}
-                                            {k.tingkat}
+                                            {k.jurusan?.kode ?? '-'}
+                                            {k.jurusan?.nama
+                                                ? ` • ${k.jurusan.nama}`
+                                                : ''}{' '}
+                                            &bull; Tingkat {k.tingkat}
                                         </span>
                                         <span className="truncate text-[11px] font-normal text-[#6B7280]">
                                             Wali:{' '}
@@ -405,6 +711,10 @@ export default function KelasIndex({
                     <Plus className="h-[26px] w-[26px] text-white" />
                 )}
             </button>
-        </AppLayout>
+        </>
     );
 }
+
+KelasIndex.layout = {
+    breadcrumbs,
+};
