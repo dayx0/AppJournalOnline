@@ -18,10 +18,7 @@ export default function AdminDashboard({ stats }: { stats: Stats }) {
     return (
         <>
             <Head title="Admin Dashboard" />
-            <PageShell
-                title="Dashboard Admin"
-                subtitle="Ringkasan data sistem"
-            >
+            <PageShell title="Dashboard Admin" subtitle="Ringkasan data sistem">
                 <section className="grid grid-cols-2 gap-3 px-5 pt-2.5 pb-6 lg:grid-cols-3 lg:gap-4 lg:px-8 lg:pt-5 lg:pb-6">
                     <StatCard
                         label="Total User"

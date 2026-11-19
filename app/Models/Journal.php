@@ -2,11 +2,41 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $guru_id
+ * @property int $kelas_id
+ * @property int|null $jadwal_id
+ * @property int $mapel_id
+ * @property string $tanggal
+ * @property string|null $tahun_ajaran
+ * @property string|null $semester
+ * @property string $jam_mulai
+ * @property string $jam_selesai
+ * @property string|null $materi
+ * @property string|null $kegiatan
+ * @property string|null $catatan
+ * @property string $status
+ * @property int|null $validated_by
+ * @property Carbon|null $validated_at
+ * @property string|null $validation_note
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Jadwal|null $jadwal
+ * @property-read User|null $guru
+ * @property-read ClassRoom|null $kelas
+ * @property-read Subject|null $mataPelajaran
+ * @property-read AttendanceJournal|null $absensi
+ * @property-read User|null $validator
+ * @property-read Collection<int, JournalHistory> $histories
+ */
 class Journal extends Model
 {
     protected $table = 'jurnal';
@@ -79,36 +109,43 @@ class Journal extends Model
         return TahunAjaran::isTerkunci($this->tahun_ajaran, $this->semester);
     }
 
+    /** @return BelongsTo<Jadwal, $this> */
     public function jadwal(): BelongsTo
     {
         return $this->belongsTo(Jadwal::class, 'jadwal_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function guru(): BelongsTo
     {
         return $this->belongsTo(User::class, 'guru_id');
     }
 
+    /** @return BelongsTo<ClassRoom, $this> */
     public function kelas(): BelongsTo
     {
         return $this->belongsTo(ClassRoom::class, 'kelas_id');
     }
 
+    /** @return BelongsTo<Subject, $this> */
     public function mataPelajaran(): BelongsTo
     {
         return $this->belongsTo(Subject::class, 'mapel_id');
     }
 
+    /** @return HasOne<AttendanceJournal, $this> */
     public function absensi(): HasOne
     {
         return $this->hasOne(AttendanceJournal::class, 'jurnal_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function validator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'validated_by');
     }
 
+    /** @return HasMany<JournalHistory, $this> */
     public function histories(): HasMany
     {
         return $this->hasMany(JournalHistory::class, 'journal_id');

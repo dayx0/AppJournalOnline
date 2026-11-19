@@ -13,9 +13,13 @@ class NotificationController extends Controller
 {
     public function index(Request $request): Response
     {
-        $kelasId = $request->user()->kelas_id === null
+        $user = $request->user();
+        abort_if($user === null, 401);
+        $userId = (int) $user->id;
+
+        $kelasId = $user->kelas_id === null
             ? null
-            : (int) $request->user()->kelas_id;
+            : (int) $user->kelas_id;
 
         // Kunci: semua list dibatasi ke kelas MPK. Tanpa kelas -> kosong.
         $scoped = fn ($q) => $kelasId === null
@@ -84,8 +88,8 @@ class NotificationController extends Controller
                 'menunggu' => Journal::where('status', Journal::STATUS_MENUNGGU)->where($scoped)->whereDate('tanggal', $hariIni)->count(),
                 'ditolak' => Journal::where('status', Journal::STATUS_DITOLAK)->where($scoped)->whereDate('tanggal', $hariIni)->count(),
             ],
-            'unreadKeys' => JournalNotificationService::unreadKeys(auth()->id()),
-            'assignedKelas' => $request->user()->kelas?->only(['id', 'nama_kelas']),
+            'unreadKeys' => JournalNotificationService::unreadKeys($userId),
+            'assignedKelas' => $user->kelas?->only(['id', 'nama_kelas']),
         ]);
     }
 }

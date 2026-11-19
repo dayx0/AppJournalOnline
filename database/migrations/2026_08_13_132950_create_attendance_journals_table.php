@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('jurnal_id')
-            ->constrained('jurnal')
-            ->onDelete('cascade');
+                ->constrained('jurnal')
+                ->onDelete('cascade');
 
             $table->integer('hadir')->nullable();
             $table->integer('izin')->nullable();

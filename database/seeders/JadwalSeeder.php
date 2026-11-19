@@ -40,9 +40,8 @@ class JadwalSeeder extends Seeder
             return;
         }
 
-        $aktif = TahunAjaran::aktif();
-        $tahun = $aktif?->nama ?? '2026/2027';
-        $semesterAktif = $aktif?->semester_aktif ?? 'ganjil';
+        $tahun = TahunAjaran::query()->where('is_aktif', true)->value('nama') ?? '2026/2027';
+        $semesterAktif = TahunAjaran::query()->where('is_aktif', true)->value('semester_aktif') ?? 'ganjil';
         $semester = "{$tahun}-{$semesterAktif}";
 
         // Regenerate penuh: hapus jadwal lama (jurnal aman via nullOnDelete),

@@ -72,6 +72,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
 
         $guruId = auth()->id();
+        abort_if($guruId === null, 401);
+        $guruId = (int) $guruId;
+
         $journals = Journal::with(['kelas', 'mataPelajaran', 'validator'])
             ->where('guru_id', $guruId)
             ->latest()

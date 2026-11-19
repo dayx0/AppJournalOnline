@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassRoom;
 use App\Models\Siswa;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -24,7 +25,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -62,7 +63,7 @@ class UserController extends Controller
         return back()->with('success', 'User berhasil ditambah');
     }
 
-    public function destroy(User $user)
+    public function destroy(User $user): RedirectResponse
     {
         // cegah admin menghapus dirinya sendiri
         if ($user->id === auth()->id()) {
@@ -73,7 +74,7 @@ class UserController extends Controller
         return back()->with('success', 'User dihapus');
     }
 
-    public function update(Request $request, User $user)
+    public function update(Request $request, User $user): RedirectResponse
     {
         $siswaId = $user->siswa?->id;
 

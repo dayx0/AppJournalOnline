@@ -9,7 +9,6 @@ use App\Models\Subject;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\JournalNotificationService;
-use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
 class JurnalCekMpkSeeder extends Seeder
@@ -34,13 +33,20 @@ class JurnalCekMpkSeeder extends Seeder
     public function run(): void
     {
         $tanggal = today()->toDateString();
-        $hari = strtolower(Carbon::parse($tanggal)->locale('id')->isoFormat('dddd'));
+        $tanggalObj = today()->copy()->setDate(
+            (int) substr($tanggal, 0, 4),
+            (int) substr($tanggal, 5, 2),
+            (int) substr($tanggal, 8, 2),
+        );
+        $tanggalObj->locale('id');
+        $hari = strtolower($tanggalObj->isoFormat('dddd'));
 
         // Tanpa ModelEvents saat seeding (lihat DatabaseSeeder), cap
         // tahun+semester diisi eksplisit di sini.
-        $aktif = TahunAjaran::aktif();
-        $tahun = $aktif?->nama ?? TahunAjaran::namaUntukTanggal($tanggal);
-        $semester = $aktif?->semester_aktif ?? TahunAjaran::semesterUntukTanggal($tanggal);
+        $tahun = TahunAjaran::query()->where('is_aktif', true)->value('nama')
+            ?? TahunAjaran::namaUntukTanggal($tanggal);
+        $semester = TahunAjaran::query()->where('is_aktif', true)->value('semester_aktif')
+            ?? TahunAjaran::semesterUntukTanggal($tanggal);
 
         $guruFallback = User::where('email', 'guru@sekolah.test')->first()
             ?? User::where('role', 'guru')->first();

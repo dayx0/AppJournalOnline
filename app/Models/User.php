@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -34,6 +35,10 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property bool $must_change_password
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read ClassRoom|null $kelas
+ * @property-read Collection<int, ClassRoom> $waliKelas
+ * @property-read Collection<int, Journal> $jurnal
+ * @property-read Siswa|null $siswa
  */
 #[Fillable(['name', 'kode_guru', 'email', 'password', 'role', 'kelas_id', 'is_active', 'must_change_password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -71,7 +76,10 @@ class User extends Authenticatable implements PasskeyUser
     {
         $bersih = trim((string) preg_replace('/\([^)]*\)/', ' ', $nama));
         $kata = preg_split('/\s+/', $bersih, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $kata = array_values(array_filter($kata, fn ($k) => preg_match('/[A-Za-z]/', $k)));
+        $kata = array_values(array_filter(
+            $kata,
+            static fn (string $k): bool => preg_match('/[A-Za-z]/', $k) === 1,
+        ));
 
         if (empty($kata)) {
             return '';
@@ -96,11 +104,7 @@ class User extends Authenticatable implements PasskeyUser
         return $kode;
     }
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    /** @return HasMany<Journal, $this> */
     public function jurnal(): HasMany
     {
         return $this->hasMany(Journal::class, 'guru_id');
@@ -124,12 +128,15 @@ class User extends Authenticatable implements PasskeyUser
     /**
      * Kelas yang ditempati MPK ini. Null untuk admin/guru
      * dan untuk MPK yang belum ditempati.
+     *
+     * @return BelongsTo<ClassRoom, $this>
      */
     public function kelas(): BelongsTo
     {
         return $this->belongsTo(ClassRoom::class, 'kelas_id');
     }
 
+    /** @return HasMany<ClassRoom, $this> */
     public function waliKelas(): HasMany
     {
         return $this->hasMany(ClassRoom::class, 'wali_kelas_id');
@@ -156,6 +163,8 @@ class User extends Authenticatable implements PasskeyUser
      * Profil siswa milik akun MPK (tabel siswa: NIS + cermin kelas).
      * Penempatan resmi tetap users.kelas_id (lihat canValidateJournal);
      * relasi ini untuk data profil + sinkronisasi admin.
+     *
+     * @return HasOne<Siswa, $this>
      */
     public function siswa(): HasOne
     {

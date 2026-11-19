@@ -58,8 +58,8 @@ export default function Welcome() {
 
                         <p className="mt-2 max-w-md text-sm leading-relaxed text-[#1F2A44]/80 md:text-base">
                             Kelola jurnal mengajar dan catatan kegiatan
-                            pembelajaran harian dengan lebih mudah dalam
-                            satu aplikasi.
+                            pembelajaran harian dengan lebih mudah dalam satu
+                            aplikasi.
                         </p>
                     </div>
 

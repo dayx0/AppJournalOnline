@@ -602,14 +602,9 @@ export default function KelasIndex({
                                     }
                                     className={`${INPUT_CLASS} appearance-none pr-9`}
                                 >
-                                    <option value="">
-                                        Semua jurusan
-                                    </option>
+                                    <option value="">Semua jurusan</option>
                                     {opsiFilterJurusan.map((j) => (
-                                        <option
-                                            key={j.id}
-                                            value={String(j.id)}
-                                        >
+                                        <option key={j.id} value={String(j.id)}>
                                             {j.kode} — {j.nama}
                                         </option>
                                     ))}

@@ -11,6 +11,8 @@ use App\Models\Subject;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +24,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class JadwalController extends Controller
 {
-    private function kelasOptions(Request $request)
+    /**
+     * @return Collection<int, ClassRoom>
+     */
+    private function kelasOptions(Request $request): Collection
     {
         // PENTING: wali hanya dikirimi kelasnya. Filter di backend,
         // bukan di frontend — frontend tidak boleh dipercaya.
@@ -147,7 +152,7 @@ class JadwalController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'kelas_id' => 'required|exists:kelas,id',
@@ -172,7 +177,7 @@ class JadwalController extends Controller
         return back()->with('success', 'Jadwal berhasil ditambah');
     }
 
-    public function update(Request $request, Jadwal $jadwal)
+    public function update(Request $request, Jadwal $jadwal): RedirectResponse
     {
         $this->authorize('update', $jadwal);
         $this->ensureTidakTerkunci($jadwal);
@@ -199,7 +204,7 @@ class JadwalController extends Controller
         return back()->with('success', 'Jadwal diperbarui');
     }
 
-    public function destroy(Jadwal $jadwal)
+    public function destroy(Jadwal $jadwal): RedirectResponse
     {
         $this->authorize('delete', $jadwal);
         $this->ensureTidakTerkunci($jadwal);
@@ -233,12 +238,15 @@ class JadwalController extends Controller
 
         $reader = new JadwalRowsImport;
         Excel::import($reader, $request->file('file'));
-        $sheets = [$reader->rows];
-        $baris = $sheets[0] ?? [];
+        $baris = $reader->rows;
 
-        $bolehKelas = $request->user()->isAdmin()
-            ? ClassRoom::pluck('id')->all()
-            : ClassRoom::where('wali_kelas_id', $request->user()->id)->pluck('id')->all();
+        $bolehKelas = array_values(
+            ($request->user()->isAdmin()
+                ? ClassRoom::query()->pluck('id')
+                : ClassRoom::where('wali_kelas_id', $request->user()->id)->pluck('id'))
+                ->map(static fn (mixed $id): int => (int) $id)
+                ->all()
+        );
 
         $hasil = $this->validasiBarisImport($baris, $bolehKelas, $validated['semester']);
 
@@ -261,25 +269,28 @@ class JadwalController extends Controller
      * firstOrCreate (bukan create): baris yang sudah ada dilewati,
      * dilaporkan sebagai "dilewati" agar user tahu.
      */
-    public function importConfirm(Request $request)
+    public function importConfirm(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', Jadwal::class);
 
         $draft = session()->pull('jadwal_import');
-        abort_unless(! empty($draft['rows'] ?? []), 422, 'Tidak ada draft import. Unggah ulang filenya.');
+        abort_unless(is_array($draft) && is_array($draft['rows'] ?? null) && $draft['rows'] !== [], 422, 'Tidak ada draft import. Unggah ulang filenya.');
+        abort_unless(is_string($draft['semester'] ?? null), 422, 'Semester draft tidak valid. Unggah ulang filenya.');
 
         $dibuat = 0;
         $dilewati = 0;
 
         foreach ($draft['rows'] as $row) {
-            $kelas = ClassRoom::find($row['kelas_id']);
-            abort_unless($kelas, 422, 'Kelas draft tidak ditemukan.');
+            abort_unless(is_array($row), 422, 'Baris draft tidak valid. Unggah ulang filenya.');
+
+            $kelas = ClassRoom::query()->find($row['kelas_id'] ?? null);
+            abort_unless($kelas instanceof ClassRoom, 422, 'Kelas draft tidak ditemukan.');
             // Policy per baris: wali tak bisa menyelundupkan kelas lain
             // lewat session yang dimodifikasi manual.
             $this->authorize('create', [Jadwal::class, $kelas]);
 
             $jadwal = Jadwal::firstOrCreate(
-                ['kelas_id' => $row['kelas_id'], 'hari' => $row['hari'], 'jam_mulai' => $row['jam_mulai']],
+                ['kelas_id' => $kelas->id, 'hari' => $row['hari'], 'jam_mulai' => $row['jam_mulai']],
                 [...$row, 'semester' => $draft['semester'], 'aktif' => true]
             );
 
@@ -294,6 +305,11 @@ class JadwalController extends Controller
      * Validasi isi file Excel per baris. Mengembalikan daftar:
      * [['no' => 2, 'data' => [...]|null, 'errors' => [...]], ...]
      * 'no' = nomor baris Excel (header = 1) agar mudah dicari user.
+     */
+    /**
+     * @param  list<list<mixed>>  $baris
+     * @param  list<int>  $bolehKelas
+     * @return list<array{no: int, data: array<string, mixed>|null, errors: list<string>}>
      */
     private function validasiBarisImport(array $baris, array $bolehKelas, string $semester): array
     {
@@ -390,7 +406,12 @@ class JadwalController extends Controller
         return $hasil;
     }
 
-    /** Cek bentrok terhadap slot valid lain dalam file yang sama. */
+    /**
+     * Cek bentrok terhadap slot valid lain dalam file yang sama.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  list<array<string, mixed>>  $diterima
+     */
     private function bentrokDengan(array $data, array $diterima): bool
     {
         foreach ($diterima as $lain) {
@@ -456,6 +477,7 @@ class JadwalController extends Controller
      * Aturan bisnis yang tak bisa diungkap rule bawaan -> cek manual.
      * Dipakai form (lempar error) dan import Excel (kumpulkan error).
      */
+    /** @param array<string, mixed> $data */
     private function slotBentrok(array $data, ?int $kecualiId = null): bool
     {
         return Jadwal::where('kelas_id', $data['kelas_id'])
@@ -467,6 +489,7 @@ class JadwalController extends Controller
             ->exists();
     }
 
+    /** @param array<string, mixed> $data */
     private function assertTidakBentrok(array $data, ?int $kecualiId = null): void
     {
         if ($this->slotBentrok($data, $kecualiId)) {

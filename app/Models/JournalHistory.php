@@ -4,7 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $journal_id
+ * @property int|null $actor_id
+ * @property string $aksi
+ * @property string|null $dari_status
+ * @property string|null $ke_status
+ * @property string|null $catatan
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Journal|null $journal
+ * @property-read User|null $actor
+ */
 class JournalHistory extends Model
 {
     public const AKSI_DIBUAT = 'dibuat';
@@ -34,11 +48,13 @@ class JournalHistory extends Model
         'catatan',
     ];
 
+    /** @return BelongsTo<Journal, $this> */
     public function journal(): BelongsTo
     {
         return $this->belongsTo(Journal::class, 'journal_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actor_id');

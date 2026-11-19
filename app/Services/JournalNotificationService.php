@@ -47,7 +47,11 @@ final class JournalNotificationService
             $query->where('kelas_id', $kelasId);
         }
 
-        return $query->pluck('id')->all();
+        return array_values(
+            $query->pluck('id')
+                ->map(static fn (mixed $id): int => (int) $id)
+                ->all()
+        );
     }
 
     /**
@@ -57,9 +61,9 @@ final class JournalNotificationService
     public static function notifyMpkNewJournal(Journal $journal): void
     {
         $journal->loadMissing(['guru', 'kelas', 'mataPelajaran']);
-        $guru = $journal->guru?->name ?? '-';
-        $kelas = $journal->kelas?->nama_kelas ?? '-';
-        $mapel = $journal->mataPelajaran?->nama_mapel ?? '-';
+        $guru = $journal->guru->name ?? '-';
+        $kelas = $journal->kelas->nama_kelas ?? '-';
+        $mapel = $journal->mataPelajaran->nama_mapel ?? '-';
 
         foreach (self::mpkUserIds((int) $journal->kelas_id) as $mpkId) {
             self::push(
@@ -86,8 +90,8 @@ final class JournalNotificationService
             Journal::STATUS_JAM_KOSONG => 'jam_kosong',
             default => 'divalidasi',
         };
-        $kelas = $journal->kelas?->nama_kelas ?? '-';
-        $mapel = $journal->mataPelajaran?->nama_mapel ?? '-';
+        $kelas = $journal->kelas->nama_kelas ?? '-';
+        $mapel = $journal->mataPelajaran->nama_mapel ?? '-';
         $oleh = $journal->validator?->name;
 
         $title = match ($kind) {
@@ -149,11 +153,14 @@ final class JournalNotificationService
     /** @return list<string> */
     public static function unreadKeys(int $userId, int $limit = 200): array
     {
-        return UserNotification::forUser($userId)
-            ->unread()
-            ->latest()
-            ->limit($limit)
-            ->pluck('key')
-            ->all();
+        return array_values(
+            UserNotification::forUser($userId)
+                ->unread()
+                ->latest()
+                ->limit($limit)
+                ->pluck('key')
+                ->map(static fn (mixed $key): string => (string) $key)
+                ->all()
+        );
     }
 }

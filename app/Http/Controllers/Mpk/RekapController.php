@@ -32,7 +32,10 @@ class RekapController extends Controller
         ]);
     }
 
-    /** @param array<string, mixed> $filters */
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Builder<Journal>
+     */
     private function baseQuery(array $filters, ?int $kelasId): Builder
     {
         $query = Journal::with(['guru', 'kelas', 'mataPelajaran', 'validator']);
@@ -120,6 +123,7 @@ class RekapController extends Controller
 
         return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
+            abort_if($out === false, 500, 'Tidak bisa membuka output CSV.');
             // BOM agar Excel Indonesia membuka UTF-8 dengan benar
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, [
@@ -129,15 +133,20 @@ class RekapController extends Controller
 
             $query->orderByDesc('tanggal')->orderByDesc('id')->chunk(500, function ($jurnals) use ($out) {
                 foreach ($jurnals as $j) {
+                    $guru = $j->guru;
+                    $kelas = $j->kelas;
+                    $mapel = $j->mataPelajaran;
+                    $validator = $j->validator;
+
                     fputcsv($out, [
                         $j->tanggal,
                         substr((string) $j->jam_mulai, 0, 5).' - '.substr((string) $j->jam_selesai, 0, 5),
-                        $j->guru?->name ?? '-',
-                        $j->kelas?->nama_kelas ?? '-',
-                        $j->mataPelajaran?->nama_mapel ?? '-',
+                        $guru instanceof User ? $guru->name : '-',
+                        $kelas instanceof ClassRoom ? $kelas->nama_kelas : '-',
+                        $mapel instanceof Subject ? $mapel->nama_mapel : '-',
                         $j->materi,
                         $j->status,
-                        $j->validator?->name ?? '-',
+                        $validator instanceof User ? $validator->name : '-',
                         $j->validated_at?->format('Y-m-d H:i') ?? '-',
                         $j->validation_note ?? '-',
                     ], ';');
