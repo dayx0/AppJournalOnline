@@ -161,7 +161,7 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Registrasi publik dimatikan: akun hanya dibuat admin sekolah.
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

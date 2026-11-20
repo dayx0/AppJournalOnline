@@ -32,7 +32,7 @@ class KelasSeeder extends Seeder
                         ? "{$romawi} {$kode}"
                         : "{$romawi} {$kode} {$i}";
 
-                    ClassRoom::updateOrCreate(
+                    ClassRoom::firstOrCreate(
                         ['nama_kelas' => $nama],
                         ['jurusan_id' => $jurusan->id, 'tingkat' => $tingkat]
                     );

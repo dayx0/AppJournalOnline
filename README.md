@@ -23,7 +23,7 @@ Aplikasi jurnal mengajar dan validasi MPK untuk SMK. Dibangun dengan Laravel, In
 composer install
 copy .env.example .env
 php artisan key:generate
-php artisan migrate --seed
+php artisan migrate
 npm install
 npm run dev
 php artisan serve
@@ -33,10 +33,21 @@ Di Linux/macOS, gunakan `cp .env.example .env`. Pastikan `database/database.sqli
 
 ```bash
 touch database/database.sqlite
-php artisan migrate --seed
+php artisan migrate
 ```
 
-> Seeder saat ini masih memuat data demo. Pemisahan seeder produksi dan demo dilakukan pada paket hardening berikutnya. Jangan menjalankan seeder demo di server produksi.
+### Data awal
+
+`php artisan db:seed` hanya mengisi data master (jurusan, kelas, mapel, tahun ajaran) dan membuat akun admin awal dari `ADMIN_EMAIL` + `ADMIN_PASSWORD` (minimal 12 karakter). Tidak ada password default.
+
+Untuk data demo lengkap (akun contoh, jadwal acak, simulasi jurnal MPK):
+
+```bash
+# Isi DEMO_SEED_PASSWORD (minimal 12 karakter) di .env terlebih dahulu.
+php artisan db:seed --class=DemoSeeder
+```
+
+`DemoSeeder` menolak berjalan di luar lingkungan `local`/`testing`, tidak menghapus jadwal yang sudah ada, dan hanya mengisi slot jadwal yang masih kosong. Jangan pernah menjalankan seeder demo di server produksi.
 
 ## Perintah kualitas
 
@@ -70,10 +81,13 @@ composer install --no-dev --optimize-autoloader
 npm ci
 npm run build
 php artisan migrate --force
+php artisan db:seed --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 ```
+
+Sebelum `db:seed`, isi `ADMIN_EMAIL` dan `ADMIN_PASSWORD` (minimal 12 karakter). Seeder produksi hanya mengisi data master dan satu akun admin; seeder demo tidak dijalankan. Jangan menjalankan `DemoSeeder` di server.
 
 Gunakan Nginx + PHP-FPM, arahkan document root ke folder `public/`, dan jalankan queue worker serta scheduler sesuai kebutuhan. Jangan mengaktifkan `APP_DEBUG` di produksi.
 
@@ -87,6 +101,7 @@ Gunakan Nginx + PHP-FPM, arahkan document root ke folder `public/`, dan jalankan
 
 ## Catatan keamanan
 
+- Registrasi publik dimatikan. Akun hanya dibuat oleh admin melalui menu Kelola User.
+- Penghapusan user, kelas, dan mapel ditolak bila masih memiliki relasi data (jurnal, jadwal, siswa, wali kelas, atau validasi). Nonaktifkan akun atau pindahkan relasinya terlebih dahulu.
 - File dump `backup_*.sql` tidak lagi dilacak Git dan diabaikan lewat `.gitignore`.
 - Dump lama masih ada di riwayat Git. Sebelum repositori dijadikan publik, pindahkan/rotasi kredensial yang pernah ada di dump dan bersihkan riwayat dengan alat seperti `git filter-repo`.
-- Registrasi publik dan pemisahan seeder produksi akan ditutup pada paket hardening berikutnya.

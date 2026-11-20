@@ -38,6 +38,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read ClassRoom|null $kelas
  * @property-read Collection<int, ClassRoom> $waliKelas
  * @property-read Collection<int, Journal> $jurnal
+ * @property-read Collection<int, Journal> $jurnalDivalidasi
+ * @property-read Collection<int, Jadwal> $jadwals
  * @property-read Siswa|null $siswa
  */
 #[Fillable(['name', 'kode_guru', 'email', 'password', 'role', 'kelas_id', 'is_active', 'must_change_password'])]
@@ -108,6 +110,18 @@ class User extends Authenticatable implements PasskeyUser
     public function jurnal(): HasMany
     {
         return $this->hasMany(Journal::class, 'guru_id');
+    }
+
+    /** @return HasMany<Journal, $this> */
+    public function jurnalDivalidasi(): HasMany
+    {
+        return $this->hasMany(Journal::class, 'validated_by');
+    }
+
+    /** @return HasMany<Jadwal, $this> */
+    public function jadwals(): HasMany
+    {
+        return $this->hasMany(Jadwal::class, 'guru_id');
     }
 
     public function isAdmin(): bool
