@@ -9,10 +9,13 @@ use App\Models\Subject;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\JournalNotificationService;
+use Database\Seeders\Concerns\DemoOnlySeeder;
 use Illuminate\Database\Seeder;
 
 class JurnalCekMpkSeeder extends Seeder
 {
+    use DemoOnlySeeder;
+
     private const MARKER = '[CEK-MPK]';
 
     /**
@@ -32,6 +35,8 @@ class JurnalCekMpkSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->ensureDemoEnvironment();
+
         $tanggal = today()->toDateString();
         $tanggalObj = today()->copy()->setDate(
             (int) substr($tanggal, 0, 4),

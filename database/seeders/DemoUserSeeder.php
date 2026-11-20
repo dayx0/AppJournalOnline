@@ -5,13 +5,20 @@ namespace Database\Seeders;
 use App\Models\ClassRoom;
 use App\Models\Siswa;
 use App\Models\User;
+use Database\Seeders\Concerns\DemoOnlySeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
-class UserSeeder extends Seeder
+class DemoUserSeeder extends Seeder
 {
+    use DemoOnlySeeder;
+
     /**
-     * Akun testing semua role (password: `password`, idempotent).
+     * Akun contoh semua role untuk pengembangan lokal.
+     *
+     * Password diambil dari DEMO_SEED_PASSWORD. Seeder menolak berjalan
+     * tanpa password yang memadai dan tidak pernah memakai "password".
      *
      * - Penempatan MPK memakai users.kelas_id (sumber kebenaran).
      * - Tiap MPK juga dapat baris profil di tabel siswa (NIS + cermin
@@ -19,6 +26,16 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->ensureDemoEnvironment();
+
+        $password = (string) config('seeding.demo_password');
+
+        if (mb_strlen($password) < 12) {
+            throw new RuntimeException(
+                'Set DEMO_SEED_PASSWORD minimal 12 karakter sebelum menjalankan DemoSeeder.'
+            );
+        }
+
         $users = [
             [
                 'name' => 'Admin Sekolah',
@@ -47,21 +64,12 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($users as $user) {
-            User::updateOrCreate(
-                ['email' => $user['email']],
-                [
-                    'name' => $user['name'],
-                    // DatabaseSeeder memakai WithoutModelEvents sehingga hook
-                    // model tidak jalan saat seeding — isi kode eksplisit.
-                    'kode_guru' => $user['role'] === 'guru'
-                        ? User::generateKodeGuru($user['name'])
-                        : null,
-                    'password' => Hash::make('password'),
-                    'role' => $user['role'],
-                    'kelas_id' => null,
-                    'email_verified_at' => now(),
-                ]
-            );
+            $this->simpanUser([
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'role' => $user['role'],
+                'kelas_id' => null,
+            ], $password);
         }
 
         // MPK per kelas: SATU akun untuk SETIAP baris kelas yang ada
@@ -72,16 +80,12 @@ class UserSeeder extends Seeder
         foreach (ClassRoom::orderBy('id')->get() as $kelas) {
             $nis++;
 
-            $model = User::updateOrCreate(
-                ['email' => 'mpk-'.$this->slugKelas($kelas->nama_kelas).'@sekolah.test'],
-                [
-                    'name' => 'MPK '.$kelas->nama_kelas,
-                    'password' => Hash::make('password'),
-                    'role' => 'mpk',
-                    'kelas_id' => $kelas->id,
-                    'email_verified_at' => now(),
-                ]
-            );
+            $model = $this->simpanUser([
+                'name' => 'MPK '.$kelas->nama_kelas,
+                'email' => 'mpk-'.$this->slugKelas($kelas->nama_kelas).'@sekolah.test',
+                'role' => 'mpk',
+                'kelas_id' => $kelas->id,
+            ], $password);
 
             Siswa::updateOrCreate(
                 ['user_id' => $model->id],
@@ -90,21 +94,47 @@ class UserSeeder extends Seeder
         }
 
         // MPK tanpa kelas (uji negatif: tidak bisa validasi apa pun).
-        $tanpaKelas = User::updateOrCreate(
-            ['email' => 'mpk-tanpa-kelas@sekolah.test'],
-            [
-                'name' => 'MPK Tanpa Kelas',
-                'password' => Hash::make('password'),
-                'role' => 'mpk',
-                'kelas_id' => null,
-                'email_verified_at' => now(),
-            ]
-        );
+        $tanpaKelas = $this->simpanUser([
+            'name' => 'MPK Tanpa Kelas',
+            'email' => 'mpk-tanpa-kelas@sekolah.test',
+            'role' => 'mpk',
+            'kelas_id' => null,
+        ], $password);
 
         Siswa::updateOrCreate(
             ['user_id' => $tanpaKelas->id],
             ['kelas_id' => null, 'nis' => null]
         );
+    }
+
+    /**
+     * @param  array{name: string, email: string, role: string, kelas_id: int|null}  $data
+     */
+    private function simpanUser(array $data, string $password): User
+    {
+        $user = User::firstOrNew(['email' => $data['email']]);
+
+        $user->fill([
+            'name' => $data['name'],
+            'kode_guru' => $data['role'] === 'guru'
+                ? User::generateKodeGuru($data['name'])
+                : null,
+            'role' => $data['role'],
+            'kelas_id' => $data['kelas_id'],
+            'email_verified_at' => now(),
+            'is_active' => true,
+            'must_change_password' => false,
+        ]);
+
+        // Akun baru selalu memakai password dari env. Akun lama hanya
+        // dirotasi jika masih memakai password demo lama "password".
+        if (! $user->exists || Hash::check('password', (string) $user->password)) {
+            $user->password = Hash::make($password);
+        }
+
+        $user->save();
+
+        return $user;
     }
 
     /**

@@ -69,6 +69,25 @@ class UserController extends Controller
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Tidak bisa hapus akun sendiri');
         }
+
+        // Akun yang masih terhubung data operasional tidak boleh dihapus.
+        // Nonaktifkan akun (is_active=false) bila guru sudah tidak bertugas.
+        if ($user->waliKelas()->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, user masih menjadi wali kelas');
+        }
+
+        if ($user->jadwals()->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, user masih menjadi guru pengampu jadwal');
+        }
+
+        if ($user->jurnal()->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, user masih punya jurnal mengajar');
+        }
+
+        if ($user->jurnalDivalidasi()->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, user masih tercatat sebagai validator jurnal');
+        }
+
         $user->delete();
 
         return back()->with('success', 'User dihapus');

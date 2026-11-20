@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Journal> $jurnal
+ * @property-read Collection<int, Jadwal> $jadwals
  */
 class Subject extends Model
 {
@@ -25,5 +26,11 @@ class Subject extends Model
     public function jurnal(): HasMany
     {
         return $this->hasMany(Journal::class, 'mapel_id');
+    }
+
+    /** @return HasMany<Jadwal, $this> */
+    public function jadwals(): HasMany
+    {
+        return $this->hasMany(Jadwal::class, 'mapel_id');
     }
 }

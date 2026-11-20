@@ -109,6 +109,19 @@ class ClassRoomController extends Controller
         if ($kls->jurnal()->exists()) {
             return back()->with('error', 'Tidak bisa hapus, kelas masih dipakai jurnal');
         }
+
+        if ($kls->jadwals()->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, kelas masih punya jadwal');
+        }
+
+        if ($kls->siswa()->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, kelas masih punya data siswa');
+        }
+
+        if (User::where('kelas_id', $kls->id)->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, kelas masih ditempati akun MPK');
+        }
+
         $kls->delete();
 
         return back()->with('success', 'Kelas dihapus');

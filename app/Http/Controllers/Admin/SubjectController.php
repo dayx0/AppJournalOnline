@@ -47,6 +47,11 @@ class SubjectController extends Controller
         if ($subject->jurnal()->exists()) {
             return back()->with('error', 'Tidak bisa hapus, Mapel masih dipakai jurnal');
         }
+
+        if ($subject->jadwals()->exists()) {
+            return back()->with('error', 'Tidak bisa hapus, Mapel masih dipakai jadwal');
+        }
+
         $subject->delete();
 
         return back()->with('success', 'Mapel dihapus');

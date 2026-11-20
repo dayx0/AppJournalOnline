@@ -273,22 +273,28 @@ class JadwalTest extends TestCase
 
     public function test_halaman_jurnal_menampilkan_slot_dan_waktu_server(): void
     {
-        [$kelas, $mapel, $guru] = $this->master('XII RPL');
+        Carbon::setTestNow('2026-10-01 10:15:00');
 
-        Journal::create([
-            'guru_id' => $guru->id, 'kelas_id' => $kelas->id, 'mapel_id' => $mapel->id,
-            'tanggal' => now()->toDateString(), 'jam_mulai' => '08:00', 'jam_selesai' => '09:30',
-            'status' => 'menunggu',
-        ]);
+        try {
+            [$kelas, $mapel, $guru] = $this->master('XII RPL');
 
-        $this->actingAs($guru)->get(route('jurnal.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('jurnal/index')
-                ->has('slotHariIni', 1)
-                // Waktu server format HH:MM (zona aplikasi, bukan jam HP).
-                ->where('sekarang', now()->format('H:i'))
-                ->whereNotNull('labelHari'));
+            Journal::create([
+                'guru_id' => $guru->id, 'kelas_id' => $kelas->id, 'mapel_id' => $mapel->id,
+                'tanggal' => now()->toDateString(), 'jam_mulai' => '08:00', 'jam_selesai' => '09:30',
+                'status' => 'menunggu',
+            ]);
+
+            $this->actingAs($guru)->get(route('jurnal.index'))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('jurnal/index')
+                    ->has('slotHariIni', 1)
+                    // Waktu server format HH:MM (zona aplikasi, bukan jam HP).
+                    ->where('sekarang', '10:15')
+                    ->whereNotNull('labelHari'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_guru_hanya_bisa_isi_slot_hari_ini(): void

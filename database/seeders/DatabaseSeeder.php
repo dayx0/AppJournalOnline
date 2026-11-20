@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -11,24 +10,20 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Seed the application's database.
+     * Seeder produksi: data master + akun admin awal.
+     *
+     * Data demo (akun contoh, jadwal acak, jurnal simulasi) TIDAK dipanggil
+     * di sini. Untuk pengembangan lokal gunakan:
+     *   php artisan db:seed --class=DemoSeeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        // Urutan penting: kelas+mapel dulu (dibutuhkan jadwal),
-        // lalu user (dibutuhkan wali & guru pengampu),
-        // lalu jadwal (dibutuhkan slot jurnal).
         $this->call([
             JurusanSeeder::class,
             KelasSeeder::class,
             MataPelajaranSeeder::class,
-            AdminSeeder::class,
-            UserSeeder::class,
             TahunAjaranSeeder::class,
-            JadwalSeeder::class,
-            JurnalCekMpkSeeder::class,
+            AdminSeeder::class,
         ]);
     }
 }

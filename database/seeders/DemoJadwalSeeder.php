@@ -7,35 +7,41 @@ use App\Models\Jadwal;
 use App\Models\Subject;
 use App\Models\TahunAjaran;
 use App\Models\User;
+use Database\Seeders\Concerns\DemoOnlySeeder;
 use Illuminate\Database\Seeder;
 
-class JadwalSeeder extends Seeder
+class DemoJadwalSeeder extends Seeder
 {
+    use DemoOnlySeeder;
+
     /**
      * Jadwal acak untuk SEMUA kelas (48 rombel): Senin-Jumat, 4 slot/hari.
-     * Tiap slot: mapel + guru pengampu dipilih acak agar semua kelas
-     * dan jurusan kebagian jadwal. Idempotent via updateOrCreate
-     * (kunci unik kelas+hari+jam_mulai).
+     *
+     * Hanya untuk demo. Seeder ini TIDAK menghapus atau menimpa jadwal
+     * yang sudah ada; slot yang sudah terisi dilewati. Idempotent via
+     * firstOrCreate dengan kunci unik kelas+hari+jam_mulai.
      */
     public function run(): void
     {
+        $this->ensureDemoEnvironment();
+
         $kelasList = ClassRoom::orderBy('id')->get();
         if ($kelasList->isEmpty()) {
-            $this->command->warn('JadwalSeeder: belum ada kelas, lewati.');
+            $this->command?->warn('DemoJadwalSeeder: belum ada kelas, lewati.');
 
             return;
         }
 
         $mapelIds = Subject::pluck('id')->all();
         if (empty($mapelIds)) {
-            $this->command->warn('JadwalSeeder: belum ada mapel, lewati.');
+            $this->command?->warn('DemoJadwalSeeder: belum ada mapel, lewati.');
 
             return;
         }
 
         $guruIds = User::where('role', 'guru')->pluck('id')->all();
         if (empty($guruIds)) {
-            $this->command->warn('JadwalSeeder: tidak ada user guru, lewati.');
+            $this->command?->warn('DemoJadwalSeeder: tidak ada user guru, lewati.');
 
             return;
         }
@@ -43,10 +49,6 @@ class JadwalSeeder extends Seeder
         $tahun = TahunAjaran::query()->where('is_aktif', true)->value('nama') ?? '2026/2027';
         $semesterAktif = TahunAjaran::query()->where('is_aktif', true)->value('semester_aktif') ?? 'ganjil';
         $semester = "{$tahun}-{$semesterAktif}";
-
-        // Regenerate penuh: hapus jadwal lama (jurnal aman via nullOnDelete),
-        // lalu isi acak untuk semua kelas termasuk XII RPL.
-        Jadwal::query()->delete();
 
         $hariList = ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
         $slotJam = [
@@ -56,8 +58,8 @@ class JadwalSeeder extends Seeder
             ['13:00', '14:30'],
         ];
 
-        // Bagi wali merata untuk kelas yang belum punya wali
-        // agar tiap grid tetap bisa dikelola via halaman /jadwal.
+        // Bagi wali merata untuk kelas yang belum punya wali. Kelas yang
+        // sudah punya wali tidak diubah.
         $guruIndex = 0;
 
         foreach ($kelasList as $kelas) {
@@ -70,14 +72,14 @@ class JadwalSeeder extends Seeder
                 $acakMapel = collect($mapelIds)->shuffle()->take(count($slotJam))->values();
 
                 foreach ($slotJam as $i => [$mulai, $selesai]) {
-                    Jadwal::updateOrCreate(
+                    Jadwal::firstOrCreate(
                         [
                             'kelas_id' => $kelas->id,
                             'hari' => $hari,
                             'jam_mulai' => $mulai,
                         ],
                         [
-                            'mapel_id' => $acakMapel[$i],
+                            'mapel_id' => $acakMapel[$i % $acakMapel->count()],
                             'guru_id' => $guruIds[array_rand($guruIds)],
                             'jam_selesai' => $selesai,
                             'semester' => $semester,
@@ -89,8 +91,8 @@ class JadwalSeeder extends Seeder
             }
         }
 
-        $this->command->info(
-            "JadwalSeeder: {$kelasList->count()} kelas x ".count($hariList).' hari x '.count($slotJam).' slot terisi.'
+        $this->command?->info(
+            "DemoJadwalSeeder: {$kelasList->count()} kelas x ".count($hariList).' hari x '.count($slotJam).' slot (slot lama tidak diubah).'
         );
     }
 }
