@@ -63,6 +63,14 @@ class JadwalTest extends TestCase
         $this->assertSame(1, Journal::count());
     }
 
+    public function test_scheduler_menolak_format_tanggal_tidak_valid(): void
+    {
+        $exitCode = Artisan::call('jurnal:generate-slot', ['--tanggal' => '28-09-2026']);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame(0, Journal::count());
+    }
+
     public function test_mode_jendela_menerbitkan_h_min_1_sampai_h_plus_7(): void
     {
         // Kunci "hari ini" ke Senin yang diketahui pasti agar deterministik.

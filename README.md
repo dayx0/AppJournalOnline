@@ -12,7 +12,7 @@ Aplikasi jurnal mengajar dan validasi MPK untuk SMK. Dibangun dengan Laravel, In
 
 ## Stack
 
-- PHP 8.3+, Laravel 13
+- PHP 8.4.1+, Laravel 13
 - MySQL 8 untuk produksi, SQLite untuk lokal/test
 - Node.js 22+, React, TypeScript, Vite, Inertia
 - Pest untuk test, Larastan/PHPStan level 7, Laravel Pint
