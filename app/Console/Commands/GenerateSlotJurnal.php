@@ -25,8 +25,16 @@ class GenerateSlotJurnal extends Command
 
     public function handle(): int
     {
-        if ($this->option('tanggal')) {
-            $this->generateUntuk($this->option('tanggal'));
+        $tanggal = $this->option('tanggal');
+
+        if ($tanggal !== null) {
+            if (! is_string($tanggal) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) !== 1) {
+                $this->error('Format --tanggal harus YYYY-MM-DD.');
+
+                return self::FAILURE;
+            }
+
+            $this->generateUntuk($tanggal);
 
             return self::SUCCESS;
         }
